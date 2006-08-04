@@ -88,9 +88,3 @@ while 1 :
  			
 sol.close()
 
-
-#data = conn.recv(1)
-#while data :
-# conn.send(data)
-# data = conn.recv(1)
-#conn.close() 
