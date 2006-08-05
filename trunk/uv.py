@@ -1,9 +1,15 @@
 import socket
 import sys
 
+dbg_lvl = 1
+
+def dbg(s) :
+        global dbg_lvl
+        if dbg_lvl > 3 : print ''.join(s) 
+
 def so_write_block(so, s) :
 	t = str(len(s)) + '\n' + s
-	print '<=', t
+	dbg(('<=', t))
 	so.send(t)
 
 def so_read_block(so) :
@@ -23,7 +29,7 @@ def so_read_block(so) :
 
  	# read payload
 	blk = so.recv(lblk)
-	print '=>', s, '\n', blk
+	dbg(('=>', s, '\n', blk))
 	return blk
  
 host = sys.argv[1]
@@ -32,18 +38,18 @@ port = long(sys.argv[2])
 so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 so.connect((host, port))
 while 1 :
-	code = so_read_block(so)
+	task = so_read_block(so)
 	
-	if code == '' : break
+	if task == '' : break
 	
 	# clear result
 	result = ''
  	
 	# execute payload
-	try :
-		exec(code)
-	except :
-		pass
+	#try :
+	exec(task)
+	#except :
+        # print "Failed to run task"
 		
 	# return result
 	so_write_block(so, result)
