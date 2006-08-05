@@ -1,3 +1,4 @@
+import inspect
 import select
 import socket
 import sys
@@ -15,9 +16,15 @@ import sys
 # Result
 # <repeat>/<disconnect>
 
+dbg_lvl = 1
+
+def dbg(s) :
+        global dbg_lvl
+        if dbg_lvl > 3 : print ''.join(s) 
+
 def so_write_block(so, s) :
 	t = str(len(s)) + '\n' + s
-	print '<=', t
+	dbg(('<=', t))
 	so.send(t)
 
 def so_read_block(so) :
@@ -37,37 +44,27 @@ def so_read_block(so) :
 
  	# read payload
 	blk = so.recv(lblk)
-	print '=>', s, '\n', blk
+	dbg(('=>', s, '\n', blk))
 	return blk
 
+job_filename = sys.argv[1]
+port = long(sys.argv[2])
 
-arg = """
-arg = %d
-"""
-
-
-code = """
-import time
-
-def work(arg) :
- time.sleep(1)
- return 'did work unit %d' % (arg)
- 
-# execute
-result = work(arg)
-
-"""
+job_file = open(job_filename, 'r')
+x = compile(job_file.read(), job_filename, 'exec')
+job_file.close()
+exec(x)
+job_worker_str = inspect.getsource(job_worker) 
 
 iwtd = []
 owtd = []
 ewtd = []
 host = ''
-port = long(sys.argv[1])
 sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sol.bind((host, port))
 sol.listen(3)
 iwtd.append(sol)
-i = 0
+
 while 1 :
 	ri, ro, re = select.select(iwtd, owtd, ewtd, 1)
 	for so in ri :
@@ -79,10 +76,14 @@ while 1 :
  			else :
 				conn = so
 				result = so_read_block(so)
-			
-			fc = arg % (i) + code
-			i = i + 1
-			so_write_block(conn, fc)
+			        job_add_result(result)
+
+                        # send out another task
+			arg = job_get_arg()
+                        task = 'arg = ' + str(arg) + '\n'
+                        task = task + job_worker_str + '\n'
+                        task = task + 'job_worker(arg)\n'
+			so_write_block(conn, task)
  		except socket.error :
  			iwtd.remove(conn)
  			
