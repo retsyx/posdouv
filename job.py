@@ -18,10 +18,11 @@ def job_finish() :
  pass
        
 def job_worker(arg) :
+        return 'internally ' + job_internal_call(arg)
+
+def job_internal_call(arg) :
         import time
-        global result
         time.sleep(1)
         result = 'performed task %s' % (arg)
         return result
 
-print "job loaded"
