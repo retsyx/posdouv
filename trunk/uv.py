@@ -49,7 +49,7 @@ while 1 :
 	#try :
 	exec(task)
 	#except :
-        # print "Failed to run task"
+    # print "Failed to run task"
 		
 	# return result
 	so_write_block(so, result)

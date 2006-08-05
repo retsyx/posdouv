@@ -54,7 +54,10 @@ job_file = open(job_filename, 'r')
 x = compile(job_file.read(), job_filename, 'exec')
 job_file.close()
 exec(x)
-job_worker_str = inspect.getsource(job_worker) 
+#job_worker_str = inspect.getsource(job_worker) 
+# find job_worker() and suck all the source starting with it
+job_worker_lines = inspect.findsource(job_worker)
+job_worker_str = ''.join(job_worker_lines[0][job_worker_lines[1]:])
 
 iwtd = []
 owtd = []
@@ -82,7 +85,7 @@ while 1 :
 			arg = job_get_arg()
                         task = 'arg = ' + str(arg) + '\n'
                         task = task + job_worker_str + '\n'
-                        task = task + 'job_worker(arg)\n'
+                        task = task + 'result = job_worker(arg)\n'
 			so_write_block(conn, task)
  		except socket.error :
  			iwtd.remove(conn)
