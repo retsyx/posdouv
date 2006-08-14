@@ -1,17 +1,17 @@
 i = 0
 
-def job_init() :
+def job_init(args) :
  global i
  i = 0
 
-def job_get_arg() :
+def job_get_arg(task_num) :
     global i 
     if i == 10000 : return '' 
     arg = str(i)
     i = i + 1
     return arg
 
-def job_add_result(result) :
+def job_add_result(task_num, result) :
     print result
 
 def job_finish() :
