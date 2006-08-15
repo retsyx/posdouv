@@ -2,6 +2,7 @@ import inspect
 import select
 import socket
 import sys
+import time
 
 # Format
 #
@@ -16,11 +17,23 @@ import sys
 # Result
 # <repeat>/<disconnect>
 
-dbg_lvl = 1
+dbg_lvl = 3
 
-def dbg(s) :
-        global dbg_lvl
-        if dbg_lvl > 3 : print ''.join(s) 
+def dbg_out(lvl, s) :
+    global dbg_lvl
+    if lvl <= dbg_lvl : print ''.join([str(x) for x in s])
+
+def dmp(s) : dbg_out(5, s)
+def dbg(s) : dbg_out(4, s)    
+def info(s) : dbg_out(3, s)
+def wrn(s) : dbg_out(2, s)
+def err(s) : dbg_out(1, s)
+
+class struct : 
+    def __str__(self) :
+        return str(self.__dict__)
+    def __repr__(self) :
+        return str(self.__dict__)
 
 def so_read_line(so) :
     s = ''
@@ -43,18 +56,25 @@ def so_read_block(so) :
     if lblk == 0 : return ''
 
     # read payload
-    blk = so.recv(lblk)
-    dbg(('=>', s, '\n', blk))
+    blk = []
+    blk_read = 0
+    while blk_read < lblk :
+        part = so.recv(lblk)
+        blk.append(part)
+        blk_read = blk_read + len(part)
+        
+    blk = ''.join(blk)
+    dmp(('=>', s, '\n', blk))
     return blk
 
 def so_read_task(so) :
     s = so_read_block(so)
-    task_info, result = s.split('\n', 1)
-    return eval(task_info), result
+    task_info, task = s.split('\n', 1)
+    return eval(task_info), task
 
 def so_write_block(so, s) :
     t = str(len(s)) + '\n' + s
-    dbg(('<=', t))
+    dmp(('<=', t))
     so.send(t)
 
 def so_write_task(so, s) :
@@ -80,6 +100,10 @@ job_worker_str = ''.join(job_worker_lines[0][job_worker_lines[1]:])
 # initialize the job
 job_init(job_args)
 
+min_time_per_task_sec = 10
+max_time_per_task_sec = 60
+
+uvs = {}
 outstanding_tasks = []
 
 nof_tasks = 0
@@ -95,31 +119,64 @@ iwtd.append(sol)
 done = 0
 while not done :
     ri, ro, re = select.select(iwtd, owtd, ewtd, 1)
+    
+    now = time.time()
+    
     for so in ri :
         try :
             if so == sol :
                 conn, addr = sol.accept()
-                print 'Connected by', addr
-                iwtd.append(conn)           
+                info(('Connected by', addr))
+                iwtd.append(conn)
+                uv = struct()
+                uv.addr = addr
+                uv.power = 1
+                uv.last_task_time = 0
+                uvs[conn] = uv
+                info([uv])
             else :
                 conn = so
-                task_info, result = so_read_task(so)
-                job_add_result(task_info[0], eval(result))
-                outstanding_tasks.remove(task_info[0])
                 
+                uv = uvs[conn]
+                
+                # based on how long this task took to complete, adjust
+                # UV power rating
+                if uv.last_task_time > 0 :
+                    if now - uv.last_task_time < min_time_per_task_sec :
+                        uv.power = uv.power * 2
+                        dbg(('increased power of ', uv.addr, ' to ', uv.power))
+                    elif now - uv.last_task_time > max_time_per_task_sec :
+                        if uv.power > 1 :
+                            uv.power = uv.power / 2
+                        
+                task_results, dummy = so_read_task(so)
+                task_info, task_results = task_results
+                dbg(('task_info ', task_info))
+                nof_task_result = task_info
+                for result in task_results :
+                    job_add_result(nof_task_result, result)
+                    nof_task_result = nof_task_result + 1
+                outstanding_tasks.remove(task_info)
+      
             # send out another task
-            arg = job_get_arg(nof_tasks)
-            if arg != '' :    
-                outstanding_tasks.append(nof_tasks)
-                task_info = tuple([nof_tasks])
+            
+            # accumulate tasks given UV's power
+            task_args = []
+            nof_task_base = nof_tasks
+            for i in range(0, uv.power) :
+                arg = job_get_arg(nof_tasks)
+                if arg == '' : break
+                task_args.append(arg)
                 nof_tasks = nof_tasks + 1
             
-                task = 'arg = ' + str(arg) + '\n'
-                task = task + job_worker_str + '\n'
-                task = task + 'result = job_worker(arg)\n'
+            if len(task_args) > 0 :
+                task_info = (nof_task_base, task_args)
+                task = job_worker_str + '\nresult = job_worker(arg)\n'
                 so_write_task(conn, (task_info, task))
+                uv.last_task_time = now
+                outstanding_tasks.append(nof_task_base) # XXX may not be relevant
             
-            dbg(('outstanding', len(outstanding_tasks)))
+            dbg(('outstanding ', len(outstanding_tasks)))
 
             if len(outstanding_tasks) == 0 :
              done = 1
@@ -127,6 +184,7 @@ while not done :
 
         except socket.error :
             iwtd.remove(conn)
+            uvs.pop(conn, 0)
 
 sol.close()
 
