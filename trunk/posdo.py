@@ -10,11 +10,11 @@ import time
 # <connect>
 # Server->Client
 # Length\n
-# State
+# State: (task base, [task_args])
 # Code
 # Client->Server
 # Length\n
-# Result
+# Result: (task base, [task_results])
 # <repeat>/<disconnect>
 
 dbg_lvl = 3
@@ -171,7 +171,13 @@ while not done :
             
             if len(task_args) > 0 :
                 task_info = (nof_task_base, task_args)
-                task = job_worker_str + '\nresult = job_worker(arg)\n'
+                # If this UV has already done some work, then it has the task code. 
+                # Don't bother sending the task code again.
+                if uv.last_task_time > 0 :
+                    task = ''
+                else :
+                    task = job_worker_str + '\nresult = job_worker(arg)\n'
+                
                 so_write_task(conn, (task_info, task))
                 uv.last_task_time = now
                 outstanding_tasks.append(nof_task_base) # XXX may not be relevant

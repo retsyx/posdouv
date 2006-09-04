@@ -72,10 +72,18 @@ so.connect((host, port))
 while 1 :
     task_info, task = so_read_task(so)
     
-    if task == '' : break
-    
+    # only compile task code if it is given, otherwise
+    # use previous code
+    if task != '' :
+        dbg(('compiling new task code'))
+        task_str = task[:] # keep a copy for reference if needed later
+        task_obj = compile(task, 'posdo', 'exec')
+        
     task_args = task_info[1]
     dmp((task_args))
+    
+    # Interpret zero length args as signal to exit
+    if len(task_args) == 0 : break
     
     task_results = []
     
@@ -86,7 +94,7 @@ while 1 :
         result = ''
             
         # execute payload
-        exec(task)
+        exec(task_obj)
         
         task_results.append(result)
         
