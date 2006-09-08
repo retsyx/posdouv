@@ -104,7 +104,8 @@ min_time_per_task_sec = 10
 max_time_per_task_sec = 60
 
 uvs = {}
-outstanding_tasks = []
+outstanding_tasks = {} # elements of the form (task_base, task_len)
+redo_tasks = [] # elements of the form (task_base, task_len)
 
 nof_tasks = 0
 iwtd = []
@@ -156,18 +157,33 @@ while not done :
                 for result in task_results :
                     job_add_result(nof_task_result, result)
                     nof_task_result = nof_task_result + 1
-                outstanding_tasks.remove(task_info)
+                outstanding_tasks.pop(uv)
       
             # send out another task
             
-            # accumulate tasks given UV's power
+            # If we have a task that needs to be redone,
+            # redo it within UV's constraints. 
+            # Otherwise, generate a fresh task
+            if len(redo_tasks) > 0 :
+                nof_task_base, task_len = redo_tasks[0]
+                if task_len > uv.power :
+                    redo_tasks[0] = (nof_task_base + uv.power, task_len - uv.power) 
+                    task_len = uv.power
+                else : # entire redo task is consumed
+                    redo_tasks.pop(0)
+                dbg(('redoing task ', nof_task_base, ' ', task_len))
+                
+            else : # this is a fresh task
+                nof_task_base = nof_tasks
+                task_len = uv.power
+                nof_tasks = nof_tasks + task_len # advance fresh task starting point
+                
+            # accumulate tasks given the task's length
             task_args = []
-            nof_task_base = nof_tasks
-            for i in range(0, uv.power) :
-                arg = job_get_arg(nof_tasks)
+            for i in range(0, task_len) :
+                arg = job_get_arg(nof_task_base + i)
                 if arg == '' : break
                 task_args.append(arg)
-                nof_tasks = nof_tasks + 1
             
             if len(task_args) > 0 :
                 task_info = (nof_task_base, task_args)
@@ -177,10 +193,11 @@ while not done :
                     task = ''
                 else :
                     task = job_worker_str + '\nresult = job_worker(arg)\n'
-                
+                print len(str(task_args))
                 so_write_task(conn, (task_info, task))
                 uv.last_task_time = now
-                outstanding_tasks.append(nof_task_base) # XXX may not be relevant
+                uv.last_task_base = nof_task_base
+                outstanding_tasks[uv] = (nof_task_base, uv.power)
             
             dbg(('outstanding ', len(outstanding_tasks)))
 
@@ -188,9 +205,19 @@ while not done :
              done = 1
              break
 
-        except socket.error :
+        except (socket.error, ValueError) :
             iwtd.remove(conn)
+            uv = uvs[conn]
+            # If this UV is currently running a task
+            # remove task from pending tasks
+            # and put in the redo list
+            if outstanding_tasks.has_key(uv) :
+                dbg(('queueing task for redo ', outstanding_tasks[uv]))
+                redo_tasks.append(outstanding_tasks[uv])
+                outstanding_tasks.pop(uv)
+                
             uvs.pop(conn, 0)
+            
 
 sol.close()
 
