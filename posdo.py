@@ -104,10 +104,10 @@ min_time_per_task_sec = 10
 max_time_per_task_sec = 60
 
 uvs = {}
-outstanding_tasks = {} # elements of the form (task_base, task_len)
-redo_tasks = [] # elements of the form (task_base, task_len)
+outstanding_tasks = {} # elements of the form (task_base, nof_tasks)
+redo_tasks = [] # elements of the form (task_base, nofs_tasks)
 
-nof_tasks = 0
+new_task_base = 0
 iwtd = []
 owtd = []
 ewtd = []
@@ -174,9 +174,9 @@ while not done :
                 dbg(('redoing task ', nof_task_base, ' ', task_len))
                 
             else : # this is a fresh task
-                nof_task_base = nof_tasks
+                nof_task_base = new_task_base
                 task_len = uv.power
-                nof_tasks = nof_tasks + task_len # advance fresh task starting point
+                new_task_base = new_task_base + task_len # advance fresh task starting point
                 
             # accumulate tasks given the task's length
             task_args = []
@@ -193,7 +193,6 @@ while not done :
                     task = ''
                 else :
                     task = job_worker_str + '\nresult = job_worker(arg)\n'
-                print len(str(task_args))
                 so_write_task(conn, (task_info, task))
                 uv.last_task_time = now
                 uv.last_task_base = nof_task_base
