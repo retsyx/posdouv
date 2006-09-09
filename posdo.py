@@ -131,7 +131,7 @@ while not done :
         try :
             if so == sol :
                 conn, addr = sol.accept()
-                info(('Connected by', addr))
+                info(('Connected by ', addr))
                 iwtd.append(conn)
                 uv = struct()
                 uv.addr = addr
