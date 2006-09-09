@@ -30,10 +30,6 @@ def job_get_arg(task_num) :
     
     return task_num
     
-    #x = base_x + (task_num % width) * zoom
-    #y = base_y + (task_num / width) * zoom
-    #return (dwell, x, y)
-    
 def job_add_result(task_num, result) :
     global width, height, img
     if (task_num >= width * height) : return
@@ -48,7 +44,6 @@ def job_finish() :
 
 def job_worker(arg) :
     import cmath
-    #dwell, x, y = arg
     global globals
     x, y, zoom, width, height, dwell, base_x, base_y = globals
     task_num = arg
