@@ -17,19 +17,26 @@ def job_init(args) :
     base_x = x - (width / 2) * zoom
     base_y = y - (height / 2) * zoom
     img = Image.new('RGB', (width, height))
+    return 0
 
+def job_get_globals() :
+    global x, y, zoom, width, height, dwell
+    globals = (x, y, zoom, width, height, dwell, base_x, base_y)
+    return globals
+    
 def job_get_arg(task_num) : 
     global width, height, base_x, base_y, zoom, dwell   
     if (task_num >= width * height) : return ''
     
-    x = base_x + (task_num % width) * zoom
-    y = base_y + (task_num / width) * zoom
-    return (dwell, x, y)
+    return task_num
+    
+    #x = base_x + (task_num % width) * zoom
+    #y = base_y + (task_num / width) * zoom
+    #return (dwell, x, y)
     
 def job_add_result(task_num, result) :
     global width, height, img
     if (task_num >= width * height) : return
-    #print task_num
     
     x = task_num % width
     y = task_num / width
@@ -40,8 +47,14 @@ def job_finish() :
     img.save('fractal.png')
 
 def job_worker(arg) :
-    dwell, x, y = arg
     import cmath
+    #dwell, x, y = arg
+    global globals
+    x, y, zoom, width, height, dwell, base_x, base_y = globals
+    task_num = arg
+
+    x = base_x + (task_num % width) * zoom
+    y = base_y + (task_num / width) * zoom
     
     c = complex(x, y)
     z = complex(0, 0)

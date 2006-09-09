@@ -1,6 +1,10 @@
 import socket
 import sys
 
+uv_ver = 1
+
+globals = ''
+
 dbg_lvl = 3
 
 def dbg_out(lvl, s) :
@@ -71,6 +75,7 @@ so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 so.connect((host, port))
 while 1 :
     task_info, task = so_read_task(so)
+    task_base, task_globals, task_args = task_info
     
     # only compile task code if it is given, otherwise
     # use previous code
@@ -78,8 +83,13 @@ while 1 :
         dbg(('compiling new task code'))
         task_str = task[:] # keep a copy for reference if needed later
         task_obj = compile(task, 'posdo', 'exec')
+    
+    # only evaluate globals if given
+    if task_globals != '' :
+        dbg(('assigning new globals'))
+        dmp((task_globals))
+        globals = task_globals
         
-    task_args = task_info[1]
     dmp((task_args))
     
     # Interpret zero length args as signal to exit
@@ -99,7 +109,7 @@ while 1 :
         task_results.append(result)
         
     # return result
-    so_write_task(so, ((task_info[0], task_results), ''))
+    so_write_task(so, ((task_base, task_results), ''))
 
 so.close()
  
