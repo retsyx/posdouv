@@ -10,7 +10,7 @@ import time
 # <connect>
 # Server->Client
 # Length\n
-# State: (task base, [task_args])
+# State: (task base, {job_globals}, [task_args])
 # Code
 # Client->Server
 # Length\n
@@ -98,7 +98,11 @@ job_worker_lines = inspect.findsource(job_worker)
 job_worker_str = ''.join(job_worker_lines[0][job_worker_lines[1]:])
 
 # initialize the job
-job_init(job_args)
+if job_init(job_args) :
+    print 'job_init() failed'
+    sys.exit(1)
+
+job_globals = job_get_globals()
 
 min_time_per_task_sec = 10
 max_time_per_task_sec = 60
@@ -172,7 +176,6 @@ while not done :
                 else : # entire redo task is consumed
                     redo_tasks.pop(0)
                 dbg(('redoing task ', nof_task_base, ' ', task_len))
-                
             else : # this is a fresh task
                 nof_task_base = new_task_base
                 task_len = uv.power
@@ -186,13 +189,16 @@ while not done :
                 task_args.append(arg)
             
             if len(task_args) > 0 :
-                task_info = (nof_task_base, task_args)
-                # If this UV has already done some work, then it has the task code. 
-                # Don't bother sending the task code again.
+                # If this UV has already done some work, then it has the task code and globals. 
+                # Don't bother sending the task code and globals again.
                 if uv.last_task_time > 0 :
                     task = ''
+                    task_globals = ''
                 else :
                     task = job_worker_str + '\nresult = job_worker(arg)\n'
+                    task_globals = job_globals
+                
+                task_info = (nof_task_base, task_globals, task_args)
                 so_write_task(conn, (task_info, task))
                 uv.last_task_time = now
                 uv.last_task_base = nof_task_base
@@ -201,8 +207,8 @@ while not done :
             dbg(('outstanding ', len(outstanding_tasks)))
 
             if len(outstanding_tasks) == 0 :
-             done = 1
-             break
+                done = 1
+                break
 
         except (socket.error, ValueError) :
             iwtd.remove(conn)

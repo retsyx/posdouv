@@ -3,6 +3,10 @@ i = 0
 def job_init(args) :
  global i
  i = 0
+ return 0
+
+def job_get_globals() :
+    return ''
 
 def job_get_arg(task_num) :
     global i 
