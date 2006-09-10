@@ -10,7 +10,7 @@ import time
 # <connect>
 # Server->Client
 # Length\n
-# State: (task base, {job_globals}, [task_args])
+# State: (task base, job_globals, [task_args])
 # Code
 # Client->Server
 # Length\n
@@ -102,6 +102,17 @@ if job_init(job_args) :
     print 'job_init() failed'
     sys.exit(1)
 
+# Get job specific options
+try :
+    options = job_get_options()
+except (ValueError, NameError):
+    info(('using option defaults'))
+    options = (1, 1)
+
+info(('options ', options))
+opt_power_scaling, opt_redo_tasks = options
+
+
 job_globals = job_get_globals()
 
 min_time_per_task_sec = 10
@@ -131,7 +142,7 @@ while not done :
         try :
             if so == sol :
                 conn, addr = sol.accept()
-                info(('Connected by ', addr))
+                info(('Connected ', addr))
                 iwtd.append(conn)
                 uv = struct()
                 uv.addr = addr
@@ -146,14 +157,15 @@ while not done :
                 
                 # based on how long this task took to complete, adjust
                 # UV power rating
-                if uv.last_task_time > 0 :
+                if opt_power_scaling and uv.last_task_time > 0 :
                     if now - uv.last_task_time < min_time_per_task_sec :
                         uv.power = uv.power * 2
                         dbg(('increased power of ', uv.addr, ' to ', uv.power))
                     elif now - uv.last_task_time > max_time_per_task_sec :
                         if uv.power > 1 :
                             uv.power = uv.power / 2
-                        
+                            dbg(('decreased power of ', uv.addr, ' to ', uv.power))
+                    
                 task_results, dummy = so_read_task(so)
                 task_info, task_results = task_results
                 dbg(('task_info ', task_info))
@@ -217,10 +229,12 @@ while not done :
             # remove task from pending tasks
             # and put in the redo list
             if outstanding_tasks.has_key(uv) :
-                dbg(('queueing task for redo ', outstanding_tasks[uv]))
-                redo_tasks.append(outstanding_tasks[uv])
+                if opt_redo_tasks :
+                    dbg(('queueing task for redo ', outstanding_tasks[uv]))
+                    redo_tasks.append(outstanding_tasks[uv])
                 outstanding_tasks.pop(uv)
-                
+            
+            info(('Disonnected ', uv.addr))
             uvs.pop(conn, 0)
             
 
