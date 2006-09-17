@@ -1,5 +1,3 @@
-import Image
-
 x = 0.0
 y = 0.0
 zoom = .01
@@ -10,6 +8,7 @@ base_x = x - (width / 2) * zoom
 base_y = y - (height / 2) * zoom
 
 def job_init(args) :
+    import Image
     global x, y, zoom, width, height, dwell
     global base_x, base_y, img
     if len(args) == 6 :
