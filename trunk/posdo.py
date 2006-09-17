@@ -100,7 +100,7 @@ def posdo_test_job_str(job_str) :
     except :
         raise PosdoException, 'Invalid job'
         
-def posdo_run_job(job_str) :
+def posdo_run_job(job_str, job_args) :
     global min_time_per_task_sec, max_time_per_task_sec
     global uv_q, uvs, outstanding_tasks, redo_tasks, new_task_base
     global sol, iwtd, owtd, ewtd
@@ -114,7 +114,7 @@ def posdo_run_job(job_str) :
 
     # compile and execute the control module of the job
     x = compile(job_control_str, 'posdo_control.py', 'exec')
-    exec(x)
+    exec(x, globals())
 
     # initialize the job
     if job_init(job_args) : raise PosdoException, 'Failed job_init()'
@@ -134,6 +134,59 @@ def posdo_run_job(job_str) :
     
     done = 0
     while not done :
+    
+        # idle UVs need to work
+        for uv in uv_q :
+            # If we have a task that needs to be redone,
+            # redo it within UV's constraints. 
+            # Otherwise, generate a fresh task
+            if len(redo_tasks) > 0 :
+                nof_task_base, task_len = redo_tasks[0]
+                if task_len > uv.power :
+                    redo_tasks[0] = (nof_task_base + uv.power, task_len - uv.power) 
+                    task_len = uv.power
+                else : # entire redo task is consumed
+                    redo_tasks.pop(0)
+                dbg(('redoing task ', nof_task_base, ' ', task_len))
+            else : # this is a fresh task
+                nof_task_base = new_task_base
+                task_len = uv.power
+                new_task_base = new_task_base + task_len # advance fresh task starting point
+                
+            # accumulate tasks given the task's length
+            task_args = []
+            for i in range(0, task_len) :
+                arg = job_get_arg(nof_task_base + i)
+                if arg == '' : break
+                task_args.append(arg)
+            
+            if len(task_args) > 0 :
+                # If this UV has already done some work, then it has the task code and globals. 
+                # Don't bother sending the task code and globals again.
+                if uv.last_task_time > 0 :
+                    task = ''
+                    task_globals = ''
+                else :
+                    task = job_worker_str + '\nresult = job_worker(arg)\n'
+                    task_globals = job_globals
+                
+                task_info = (nof_task_base, task_globals, task_args)
+                so_write_task(uv.so, (task_info, task))
+                uv.last_task_time = now
+                uv.last_task_base = nof_task_base
+                outstanding_tasks[uv] = (nof_task_base, uv.power)
+                
+                uv_q.remove(uv)
+            else : 
+                # If there are no task_args, then there is nothing left to do.
+                break
+
+        dbg(('outstanding ', len(outstanding_tasks)))
+        
+        # If there are UVs available and no more outstanding jobs, we are done
+        # XXX This is an implicit check. May make sense to make it explicit
+        if len(uvs) > 0 and len(outstanding_tasks) == 0 : done = 1
+            
         ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
         
         now = time.time()
@@ -145,6 +198,7 @@ def posdo_run_job(job_str) :
                     info(('Connected ', addr))
                     iwtd.append(conn)
                     uv = struct()
+                    uv.so = conn
                     uv.addr = addr
                     uv.power = 1
                     uv.last_task_time = 0
@@ -153,9 +207,18 @@ def posdo_run_job(job_str) :
                     
                     uv_q.append(uv) # add to idle list    
                 else :
-                    conn = so
-                    
-                    uv = uvs[conn]
+                    uv = uvs[so]
+
+                    task_results, dummy = so_read_task(uv.so)
+                    task_info, task_results = task_results
+                    dbg(('task_info ', task_info))
+                    nof_task_result = task_info
+                    for result in task_results :
+                        job_add_result(nof_task_result, result)
+                        nof_task_result = nof_task_result + 1
+                    outstanding_tasks.pop(uv)
+    
+                    uv_q.append(uv) # add to idle list    
                     
                     # based on how long this task took to complete, adjust
                     # UV power rating
@@ -167,71 +230,10 @@ def posdo_run_job(job_str) :
                             if uv.power > 1 :
                                 uv.power = uv.power / 2
                                 dbg(('decreased power of ', uv.addr, ' to ', uv.power))
-                        
-                    task_results, dummy = so_read_task(so)
-                    task_info, task_results = task_results
-                    dbg(('task_info ', task_info))
-                    nof_task_result = task_info
-                    for result in task_results :
-                        job_add_result(nof_task_result, result)
-                        nof_task_result = nof_task_result + 1
-                    outstanding_tasks.pop(uv)
-    
-                    uv_q.append(uv) # add to idle list    
           
-                # send out another task
-    
-                # grab UV
-                uv = uv_q.pop()
-                
-                # If we have a task that needs to be redone,
-                # redo it within UV's constraints. 
-                # Otherwise, generate a fresh task
-                if len(redo_tasks) > 0 :
-                    nof_task_base, task_len = redo_tasks[0]
-                    if task_len > uv.power :
-                        redo_tasks[0] = (nof_task_base + uv.power, task_len - uv.power) 
-                        task_len = uv.power
-                    else : # entire redo task is consumed
-                        redo_tasks.pop(0)
-                    dbg(('redoing task ', nof_task_base, ' ', task_len))
-                else : # this is a fresh task
-                    nof_task_base = new_task_base
-                    task_len = uv.power
-                    new_task_base = new_task_base + task_len # advance fresh task starting point
-                    
-                # accumulate tasks given the task's length
-                task_args = []
-                for i in range(0, task_len) :
-                    arg = job_get_arg(nof_task_base + i)
-                    if arg == '' : break
-                    task_args.append(arg)
-                
-                if len(task_args) > 0 :
-                    # If this UV has already done some work, then it has the task code and globals. 
-                    # Don't bother sending the task code and globals again.
-                    if uv.last_task_time > 0 :
-                        task = ''
-                        task_globals = ''
-                    else :
-                        task = job_worker_str + '\nresult = job_worker(arg)\n'
-                        task_globals = job_globals
-                    
-                    task_info = (nof_task_base, task_globals, task_args)
-                    so_write_task(conn, (task_info, task))
-                    uv.last_task_time = now
-                    uv.last_task_base = nof_task_base
-                    outstanding_tasks[uv] = (nof_task_base, uv.power)
-                
-                dbg(('outstanding ', len(outstanding_tasks)))
-    
-                if len(outstanding_tasks) == 0 :
-                    done = 1
-                    break
-    
             except (socket.error, ValueError) :
-                iwtd.remove(conn)
-                uv = uvs[conn]
+                iwtd.remove(uv.so)
+                uv = uvs[uv.so]
                 # If this UV is currently running a task
                 # remove task from pending tasks
                 # and put in the redo list
@@ -240,13 +242,13 @@ def posdo_run_job(job_str) :
                         dbg(('queueing task for redo ', outstanding_tasks[uv]))
                         redo_tasks.append(outstanding_tasks[uv])
                     outstanding_tasks.pop(uv)
-                uv_q.remove(uv) # remove from idle list
-                    
+                try :
+                    uv_q.remove(uv) # if on idle list, remove
+                except : pass    
                 info(('Disonnected ', uv.addr))
-                uvs.pop(conn, 0)
+                uvs.pop(uv.so, 0)
     
     job_finish() # signal job finished
-
 
 port = long(sys.argv[1])
 job_filename = sys.argv[2]
@@ -258,7 +260,7 @@ max_time_per_task_sec = 60
 new_task_base = 0
 
 uv_q = []  # UV
-uvs = {} # conn -> UV
+uvs = {} # so -> UV
 outstanding_tasks = {} # elements of the form (task_base, nof_tasks)
 redo_tasks = [] # elements of the form (task_base, nofs_tasks)
 
@@ -277,7 +279,7 @@ job_file = open(job_filename, 'r')
 job_str = job_file.read()
 job_file.close()
 
-posdo_run_job(job_str)
+posdo_run_job(job_str, job_args)
 
 sol.close()
 
