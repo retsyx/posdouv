@@ -99,6 +99,21 @@ def posdo_test_job_str(job_str) :
         x = compile(job_str, 'test', 'exec')
     except :
         raise PosdoException, 'Invalid job'
+
+def posdo_accept_uv() :
+    global sol, iwtd, uvs, uv_q
+    conn, addr = sol.accept()
+    info(('Connected ', addr))
+    iwtd.append(conn)
+    uv = struct()
+    uv.so = conn
+    uv.addr = addr
+    uv.power = 1
+    uv.last_task_time = 0
+    uvs[conn] = uv
+    info([uv])
+    
+    uv_q.append(uv) # add to idle list  
         
 def posdo_run_job(job_str, job_args) :
     global min_time_per_task_sec, max_time_per_task_sec
@@ -108,6 +123,11 @@ def posdo_run_job(job_str, job_args) :
     # task counter
     new_task_base = 0
 
+    # reset some info about our UVs
+    for so, uv in uvs.iteritems() :
+        uv.last_task_time = 0
+        uv.power = 1 
+        
     job_control_str, job_worker_str = posdo_parse_job_str(job_str)
     posdo_test_job_str(job_control_str)
     posdo_test_job_str(job_worker_str)
@@ -134,6 +154,8 @@ def posdo_run_job(job_str, job_args) :
     
     done = 0
     while not done :
+
+        now = time.time()
     
         # idle UVs need to work
         for uv in uv_q :
@@ -190,22 +212,11 @@ def posdo_run_job(job_str, job_args) :
         ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
         
         now = time.time()
-        
+    
         for so in ri :
             try :
                 if so == sol :
-                    conn, addr = sol.accept()
-                    info(('Connected ', addr))
-                    iwtd.append(conn)
-                    uv = struct()
-                    uv.so = conn
-                    uv.addr = addr
-                    uv.power = 1
-                    uv.last_task_time = 0
-                    uvs[conn] = uv
-                    info([uv])
-                    
-                    uv_q.append(uv) # add to idle list    
+                    posdo_accept_uv()
                 else :
                     uv = uvs[so]
 
@@ -251,12 +262,12 @@ def posdo_run_job(job_str, job_args) :
     job_finish() # signal job finished
 
 port = long(sys.argv[1])
-job_filename = sys.argv[2]
-job_args = sys.argv[3:]
+
+#job_filename = sys.argv[2]
+#job_args = sys.argv[3:]
 
 min_time_per_task_sec = 10
 max_time_per_task_sec = 60
-
 new_task_base = 0
 
 uv_q = []  # UV
@@ -269,17 +280,43 @@ iwtd = []
 owtd = []
 ewtd = []
 
+# open up our listening socket on the correct IP:port
 host = ''
 sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+if hasattr(socket, "SO_REUSEPORT") :
+    sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 sol.bind((host, port))
 sol.listen(3)
-iwtd.append(sol)
+iwtd.append(sol) # add socket to the select input list
 
-job_file = open(job_filename, 'r')
-job_str = job_file.read()
-job_file.close()
-
-posdo_run_job(job_str, job_args)
+print 'ok'
+while 1 :
+    ri, ro, rerr = select.select(iwtd + [sys.stdin], owtd, ewtd, 30)
+    for so in ri :
+        if so == sol :
+            posdo_accept_uv()
+        elif so == sys.stdin :
+            # parse the command
+            line = sys.stdin.readline()
+            line_list = line.split()
+            
+            try :
+                job_filename = line_list[0]
+                job_args = line_list[1:] # XXX wrong parsing for arguments in quotes with spaces
+            except :
+                print '? Syntax Error'
+                continue
+            
+            try :
+                job_file = open(job_filename, 'r')
+                job_str = job_file.read()
+                job_file.close()
+            except IOError, inst :
+                print "%s: %s" % (job_filename, inst);
+                continue    
+            posdo_run_job(job_str, job_args)
+            print 'ok'    
 
 sol.close()
 

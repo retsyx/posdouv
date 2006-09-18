@@ -1,5 +1,6 @@
 import socket
 import sys
+import time
 
 uv_ver = 1
 
@@ -71,45 +72,52 @@ def so_write_task(so, s) :
 host = sys.argv[1]
 port = long(sys.argv[2])
 
-so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-so.connect((host, port))
 while 1 :
-    task_info, task = so_read_task(so)
-    task_base, task_globals, task_args = task_info
-    
-    # only compile task code if it is given, otherwise
-    # use previous code
-    if task != '' :
-        dbg(('compiling new task code'))
-        task_str = task[:] # keep a copy for reference if needed later
-        task_obj = compile(task, 'posdo', 'exec')
-    
-    # only evaluate globals if given
-    if task_globals != '' :
-        dbg(('assigning new globals'))
-        dmp((task_globals))
-        globals = task_globals
+    try :
+        so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        so.connect((host, port))
+        while 1 :
+            task_info, task = so_read_task(so)
+            task_base, task_globals, task_args = task_info
         
-    dmp((task_args))
-    
-    # Interpret zero length args as signal to exit
-    if len(task_args) == 0 : break
-    
-    task_results = []
-    
-    for arg in task_args :
-        dmp(('arg = ', arg))
-       
-        # clear result
-        result = ''
+            # only compile task code if it is given, otherwise
+            # use previous code
+            if task != '' :
+                dbg(('compiling new task code'))
+                task_str = task[:] # keep a copy for reference if needed later
+                task_obj = compile(task, 'posdo', 'exec')
             
-        # execute payload
-        exec(task_obj)
-        
-        task_results.append(result)
-        
-    # return result
-    so_write_task(so, ((task_base, task_results), ''))
+            # only evaluate globals if given
+            if task_globals != '' :
+                dbg(('assigning new globals'))
+                dmp((task_globals))
+                globals = task_globals
+                
+            dmp((task_args))
+            
+            # Interpret zero length args as signal to exit
+            if len(task_args) == 0 : break
+            
+            task_results = []
+            
+            for arg in task_args :
+                dmp(('arg = ', arg))
+               
+                # clear result
+                result = ''
+                    
+                # execute payload
+                exec(task_obj)
+                
+                task_results.append(result)
+                
+            # return result
+            so_write_task(so, ((task_base, task_results), ''))
+    except (ValueError, socket.error) :
+        so.close()
+    print '.'    
+    # sleep a little before hammering the server
+    time.sleep(10)
 
 so.close()
  
