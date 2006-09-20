@@ -144,10 +144,10 @@ def posdo_run_job(job_str, job_args) :
         options = job_get_options()
     except (ValueError, NameError):
         info(('using option defaults'))
-    options = (1, 1)
+        options = (1, 1, 0)
 
     info(('options ', options))
-    opt_power_scaling, opt_redo_tasks = options
+    opt_power_scaling, opt_redo_tasks, opt_max_outstanding = options
 
     # Get job globals
     job_globals = job_get_globals()
@@ -159,6 +159,8 @@ def posdo_run_job(job_str, job_args) :
     
         # idle UVs need to work
         for uv in uv_q :
+            if opt_max_outstanding > 0 and len(outstanding_tasks) >= opt_max_outstanding : break
+            
             # If we have a task that needs to be redone,
             # redo it within UV's constraints. 
             # Otherwise, generate a fresh task
