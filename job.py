@@ -10,7 +10,7 @@ def job_get_globals() :
 
 def job_get_arg(task_num) :
     global i 
-    if i == 10000 : return '' 
+    if i == 10 : return '' 
     arg = str(i)
     i = i + 1
     return arg

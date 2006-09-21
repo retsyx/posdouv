@@ -26,7 +26,7 @@ def job_get_globals() :
     
 def job_get_arg(task_num) : 
     global width, height, base_x, base_y, zoom, dwell   
-    if (task_num >= width * height) : return ''
+    if (task_num >= width * height) : return None
     
     return task_num
     
