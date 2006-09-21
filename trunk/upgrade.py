@@ -38,8 +38,8 @@ def job_get_globals() :
     
 def job_get_arg(task_num) : 
     global done, nof_uvs_updated
-    if done : return ''
-    nof_uvs_updated = task_num#nof_uvs_updated + 1
+    if done : return None
+    nof_uvs_updated = task_num
     return (new_uv_ver, new_uv_src)
     
 def job_add_result(task_num, result) :

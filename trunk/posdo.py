@@ -181,7 +181,7 @@ def posdo_run_job(job_str, job_args) :
             task_args = []
             for i in range(0, task_len) :
                 arg = job_get_arg(nof_task_base + i)
-                if arg == '' : break
+                if arg == None : break
                 task_args.append(arg)
             
             if len(task_args) > 0 :

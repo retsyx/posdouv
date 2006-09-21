@@ -24,7 +24,7 @@ nof_tasks = 0
 while 1 :
     # get an argument for a task
     arg = job_get_arg(nof_tasks)
-    if arg == '' : break
+    if arg == None : break
     
     # execute the task
     result = job_worker(arg)
