@@ -198,7 +198,7 @@ def posdo_run_job(job_str, job_args) :
                 so_write_task(uv.so, (task_info, task))
                 uv.last_task_time = now
                 uv.last_task_base = nof_task_base
-                outstanding_tasks[uv] = (nof_task_base, uv.power)
+                outstanding_tasks[uv] = (nof_task_base, task_len)
                 
                 uv_q.remove(uv)
             else : 
@@ -251,10 +251,14 @@ def posdo_run_job(job_str, job_args) :
                 # remove task from pending tasks
                 # and put in the redo list
                 if outstanding_tasks.has_key(uv) :
+                    task_info = outstanding_tasks.pop(uv)
                     if opt_redo_tasks :
-                        dbg(('queueing task for redo ', outstanding_tasks[uv]))
-                        redo_tasks.append(outstanding_tasks[uv])
-                    outstanding_tasks.pop(uv)
+                        dbg(('queueing task for redo ', task_info))
+                        redo_tasks.append(task_info)
+                    else :
+                        (nof_task_base, task_len) = task_info
+                        for i in xrange(nof_task_base, nof_task_base + task_len) : 
+                            job_notify_failure(i) # notify the job of the failure                       
                 try :
                     uv_q.remove(uv) # if on idle list, remove
                 except : pass    
