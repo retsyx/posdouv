@@ -152,8 +152,8 @@ def posdo_run_job(job_str, job_args) :
     # Get job globals
     job_globals = job_get_globals()
     
-    done = 0
-    while not done :
+    posdo_done = 0
+    while not posdo_done :
 
         now = time.time()
     
@@ -161,7 +161,7 @@ def posdo_run_job(job_str, job_args) :
         for uv in uv_q :
             if opt_max_outstanding > 0 and len(outstanding_tasks) >= opt_max_outstanding : break
             
-            # If we have a task that needs to be redone,
+            # If we have a task that needs to be reposdo_done,
             # redo it within UV's constraints. 
             # Otherwise, generate a fresh task
             if len(redo_tasks) > 0 :
@@ -185,7 +185,7 @@ def posdo_run_job(job_str, job_args) :
                 task_args.append(arg)
             
             if len(task_args) > 0 :
-                # If this UV has already done some work, then it has the task code and globals. 
+                # If this UV has already posdo_done some work, then it has the task code and globals. 
                 # Don't bother sending the task code and globals again.
                 if uv.last_task_time > 0 :
                     task = ''
@@ -207,9 +207,9 @@ def posdo_run_job(job_str, job_args) :
 
         dbg(('outstanding ', len(outstanding_tasks)))
         
-        # If there are UVs available and no more outstanding jobs, we are done
+        # If there are UVs available and no more outstanding jobs, we are posdo_done
         # XXX This is an implicit check. May make sense to make it explicit
-        if len(uvs) > 0 and len(outstanding_tasks) == 0 : done = 1
+        if len(uvs) > 0 and len(outstanding_tasks) == 0 : posdo_done = 1
             
         ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
         

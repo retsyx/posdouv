@@ -34,7 +34,7 @@ def job_init(args) :
     return 0
 
 def job_get_globals() :
-    return [0, 0] # pass count, dummy
+    return ''
     
 def job_get_arg(task_num) : 
     global done, nof_uvs_updated
@@ -53,7 +53,7 @@ def job_finish() :
 def job_worker(arg) :
     import os, sys, time
     
-    global uv_ver, globals
+    global uv_ver
     new_uv_ver, new_uv_src = arg
     
     # UV version is the same, no change
