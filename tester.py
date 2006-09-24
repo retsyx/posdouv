@@ -28,7 +28,7 @@ while 1 :
     
     # execute the task
     result = job_worker(arg)
-    
+
     # add the result
     job_add_result(nof_tasks, result)
 

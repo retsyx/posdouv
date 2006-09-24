@@ -38,7 +38,9 @@ def job_add_result(task_num, result) :
     y = task_num / width
     
     img.putpixel((x, y), result)
-  
+
+def job_notify_failure(task_num) : pass
+
 def job_finish() :
     img.save('fractal.png')
 

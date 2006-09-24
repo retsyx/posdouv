@@ -45,7 +45,9 @@ def job_get_arg(task_num) :
 def job_add_result(task_num, result) :
     global done
     done = 1
-    
+
+def job_notify_failure(task_num) : pass
+
 def job_finish() :
     global nof_uvs_updated
     print 'updated =', nof_uvs_updated
