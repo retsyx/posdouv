@@ -296,9 +296,9 @@ sol.bind((host, port))
 sol.listen(3)
 iwtd.append(sol) # add socket to the select input list
 
-print 'ok'
 while 1 :
-    ri, ro, rerr = select.select(iwtd + [sys.stdin], owtd, ewtd, 30)
+    print 'ok'
+    ri, ro, rerr = select.select(iwtd + [sys.stdin], owtd, ewtd)
     for so in ri :
         if so == sol :
             posdo_accept_uv()
@@ -322,7 +322,6 @@ while 1 :
                 print "%s: %s" % (job_filename, inst);
                 continue    
             posdo_run_job(job_str, job_args)
-            print 'ok'    
 
 sol.close()
 
