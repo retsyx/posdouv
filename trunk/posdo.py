@@ -245,6 +245,7 @@ def posdo_run_job(job_str, job_args) :
                                 dbg(('decreased power of ', uv.addr, ' to ', uv.power))
           
             except (socket.error, ValueError) :
+                uv.so.close()
                 iwtd.remove(uv.so)
                 uv = uvs[uv.so]
                 # If this UV is currently running a task
@@ -322,6 +323,13 @@ while 1 :
                 print "%s: %s" % (job_filename, inst);
                 continue    
             posdo_run_job(job_str, job_args)
-
+        elif uvs.has_key(so) :
+            so.close()
+            uv = uvs.pop(so, 0)
+            iwtd.remove(uv.so)
+            try :
+               uv_q.remove(uv) # if on idle list, remove
+            except : pass
+            info(('Disconnected ', uv.addr)) 
 sol.close()
 
