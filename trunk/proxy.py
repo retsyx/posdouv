@@ -2,9 +2,10 @@ import sys, socket, select
 try :
     import psyco
     psyco.full()
-except : pass
+except : 
+    pass
 
-class HostPortProxy() :
+class HostPortProxy :
     def __init__(self, local_bind, remote_bind) :
         self.local_bind = local_bind
         self.remote_bind = remote_bind
@@ -51,7 +52,7 @@ class HostPortProxy() :
                 self.so.remove(so2)
 
     
-class ProxySelect() :
+class ProxySelect :
     def __init__(self) :
         self.proxies = []
         
