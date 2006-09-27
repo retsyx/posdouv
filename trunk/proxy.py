@@ -1,4 +1,8 @@
 import sys, socket, select
+try :
+    import psyco
+    psyco.full()
+except : pass
 
 class HostPortProxy() :
     def __init__(self, local_bind, remote_bind) :
