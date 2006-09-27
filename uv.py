@@ -2,6 +2,11 @@ import socket
 import sys
 import time
 
+try :
+    import psyco
+    psyco.full()
+except : pass
+
 uv_ver = 1
 
 globals = ''
