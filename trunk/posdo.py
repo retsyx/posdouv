@@ -60,10 +60,10 @@ def so_read_block(so) :
     blk = []
     blk_read = 0
     while blk_read < lblk :
-        part = so.recv(lblk)
+        part = so.recv(lblk, 4096)
         blk.append(part)
         blk_read = blk_read + len(part)
-        
+    
     blk = ''.join(blk)
     dmp(('=>', s, '\n', blk))
     return blk
@@ -76,7 +76,10 @@ def so_read_task(so) :
 def so_write_block(so, s) :
     t = str(len(s)) + '\n' + s
     dmp(('<=', t))
-    so.send(t)
+    while 1 :
+        l = so.send(t)
+        if l == len(t) : break
+        t = t[l:]
 
 def so_write_task(so, s) :
     task_info, s = s

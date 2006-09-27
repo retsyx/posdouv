@@ -67,7 +67,10 @@ def so_read_task(so) :
 def so_write_block(so, s) :
     t = str(len(s)) + '\n' + s
     dmp(('<=', t))
-    so.send(t)
+    while 1 :
+        l = so.send(t)
+        if l == len(t) : break
+        t = t[l:]
 
 def so_write_task(so, s) :
     task_info, s = s
