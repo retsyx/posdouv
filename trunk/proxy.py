@@ -38,15 +38,14 @@ class HostPortProxy :
                 so1.close()
         else :
             so1 = so
+            so2 = self.s2s[so1]
             try :
-                so2 = self.s2s[so1]
                 buf = so.recv(4096)
                 if len(buf) == 0 : raise Exception, "Socket died"
                 while 1 :
                     l = so2.send(buf)
                     if l == len(buf) : break
                     buf = buf[l:]
-                    
             except :
                 so1.close()
                 so2.close()
