@@ -63,7 +63,6 @@ def so_read_block(so) :
         part = so.recv(lblk, 4096)
         blk.append(part)
         blk_read = blk_read + len(part)
-    
     blk = ''.join(blk)
     dmp(('=>', s, '\n', blk))
     return blk
@@ -91,8 +90,10 @@ class PosdoException(Exception) : pass
 
 def posdo_parse_job_str(job_str) :
     worker_match = re.compile('def.*job_worker').search(job_str)
-    offset = worker_match.start()
-    if offset == None : raise PosdoException, "Unable to find 'job_worker'" 
+    try : 
+        offset = worker_match.start()
+    except :
+        raise PosdoException, "Unable to find 'job_worker'" 
     return job_str[:offset], job_str[offset:]
 
 # For now we validity by compiling it
@@ -300,9 +301,14 @@ sol.bind((host, port))
 sol.listen(3)
 iwtd.append(sol) # add socket to the select input list
 
+now = 0
 while 1 :
-    print 'ok'
+    if now != 0: 
+        print 'ok (%.2f)' % (time.time() - now)
+    else :
+        print 'ok'
     ri, ro, rerr = select.select(iwtd + [sys.stdin], owtd, ewtd)
+    now = time.time()
     for so in ri :
         if so == sol :
             posdo_accept_uv()
@@ -312,7 +318,7 @@ while 1 :
             line_list = line.split()
             
             try :
-                job_filename = line_list[0]
+                job_filename = line_list[0] + '.py'
                 job_args = line_list[1:] # XXX wrong parsing for arguments in quotes with spaces
             except :
                 print '? Syntax Error'
@@ -325,7 +331,10 @@ while 1 :
             except IOError, inst :
                 print "%s: %s" % (job_filename, inst);
                 continue    
-            posdo_run_job(job_str, job_args)
+            try :
+                posdo_run_job(job_str, job_args)
+            except PosdoException, inst :
+                print '!', inst
         elif uvs.has_key(so) :
             so.close()
             uv = uvs.pop(so, 0)
