@@ -8,7 +8,7 @@ try :
     psyco.full()
 except : pass
 
-uv_ver = 2
+uv_ver = 1
 
 globals = ''
 

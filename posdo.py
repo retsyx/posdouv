@@ -61,8 +61,10 @@ def so_read_block(so) :
     blk_read = 0
     while blk_read < lblk :
         part = so.recv(lblk, 4096)
+        if len(part) == 0 : raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
+
     blk = ''.join(blk)
     dmp(('=>', s, '\n', blk))
     return blk
@@ -146,12 +148,13 @@ def posdo_run_job(job_str, job_args) :
     # Get job specific options (optional)
     try :
         options = job_get_options()
+        if options == None : raise ValueError
     except (ValueError, NameError):
         info(('using option defaults'))
         options = (1, 1, 0)
 
-    info(('options ', options))
     opt_power_scaling, opt_redo_tasks, opt_max_outstanding = options
+    info(('options ', options))
 
     # Get job globals
     job_globals = job_get_globals()
@@ -215,8 +218,11 @@ def posdo_run_job(job_str, job_args) :
         # XXX This is an implicit check. May make sense to make it explicit
         if len(uvs) > 0 and len(outstanding_tasks) == 0 : posdo_done = 1
             
-        ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
-        
+        if len(outstanding_tasks) > 0 :
+            ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
+        else :
+            ri = []
+            
         now = time.time()
     
         for so in ri :
@@ -333,7 +339,7 @@ while 1 :
                 continue    
             try :
                 posdo_run_job(job_str, job_args)
-            except PosdoException, inst :
+            except Exception, inst :
                 print '!', inst
         elif uvs.has_key(so) :
             so.close()
