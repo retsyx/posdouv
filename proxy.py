@@ -38,22 +38,25 @@ class HostPortProxy :
                 so1.close()
         else :
             so1 = so
-            so2 = self.s2s[so1]
+            so2 = None
             try :
+                so2 = self.s2s[so1]
                 buf = so.recv(4096)
                 if len(buf) == 0 : raise Exception, "Socket died"
-                while 1 :
-                    l = so2.send(buf)
-                    if l == len(buf) : break
-                    buf = buf[l:]
+                so2.sendall(buf)
+ #               while 1 :
+ #                   l = so2.send(buf)
+ #                   if l == len(buf) : break
+ #                   buf = buf[l:]
             except :
                 so1.close()
-                so2.close()
                 self.s2s.pop(so1)
-                self.s2s.pop(so2)
                 self.so.remove(so1)
-                self.so.remove(so2)
 
+                if so2 != None: 
+                    so2.close()
+                    self.s2s.pop(so2)
+                    self.so.remove(so2)
     
 class ProxySelect :
     def __init__(self) :
