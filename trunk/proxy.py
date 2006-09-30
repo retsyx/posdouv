@@ -30,12 +30,13 @@ class HostPortProxy :
             so2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try :
                 so2.connect(self.remote_bind)
+            except :
+                so1.close()
+            else :
                 self.s2s[so1] = so2
                 self.s2s[so2] = so1
                 self.so.append(so1)
                 self.so.append(so2)
-            except :
-                so1.close()
         else :
             so1 = so
             so2 = None
@@ -44,10 +45,6 @@ class HostPortProxy :
                 buf = so.recv(4096)
                 if len(buf) == 0 : raise Exception, "Socket died"
                 so2.sendall(buf)
- #               while 1 :
- #                   l = so2.send(buf)
- #                   if l == len(buf) : break
- #                   buf = buf[l:]
             except :
                 so1.close()
                 self.s2s.pop(so1)
