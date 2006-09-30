@@ -1,13 +1,14 @@
 import socket
 import sys
 import time
+import random
 
 try :
     import psyco
     psyco.full()
 except : pass
 
-uv_ver = 1
+uv_ver = 2
 
 globals = ''
 
@@ -51,6 +52,7 @@ def so_read_block(so) :
     blk_read = 0
     while blk_read < lblk :
         part = so.recv(lblk)
+        if len(part) == 0 : raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
         
@@ -125,7 +127,7 @@ while 1 :
         so.close()
     print '.'    
     # sleep a little before hammering the server
-    time.sleep(10)
+    time.sleep(random.randint(1, 10))
 
 so.close()
  
