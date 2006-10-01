@@ -52,7 +52,7 @@ def so_read_block(so) :
     blk = []
     blk_read = 0
     while blk_read < lblk :
-        part = so.recv(lblk, 4096)
+        part = so.recv(min(lblk - blk_read, 4096))
         if len(part) == 0 : raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
