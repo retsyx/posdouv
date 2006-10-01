@@ -2,6 +2,7 @@ import socket
 import sys
 import time
 import random
+import zlib
 
 try :
     import psyco
@@ -51,28 +52,27 @@ def so_read_block(so) :
     blk = []
     blk_read = 0
     while blk_read < lblk :
-        part = so.recv(lblk)
+        part = so.recv(lblk, 4096)
         if len(part) == 0 : raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
-        
-    blk = ''.join(blk)
-    dmp(('=>', s, '\n', blk))
-    return blk
 
+    blk = ''.join(blk)
+    s = zlib.decompress(blk)
+
+    dmp(('=>', len(s), '\n', s))
+    return s
 
 def so_read_task(so) :
     s = so_read_block(so)
     task_info, task = s.split('\n', 1)
     return eval(task_info), task
 
-def so_write_block(so, s) :
-    t = str(len(s)) + '\n' + s
-    dmp(('<=', t))
-    while 1 :
-        l = so.send(t)
-        if l == len(t) : break
-        t = t[l:]
+def so_write_block(so, r) :
+    dmp(('<=', len(r), r))
+    s = zlib.compress(r)
+    t = ''.join((str(len(s)), '\n', s))
+    so.sendall(t)
 
 def so_write_task(so, s) :
     task_info, s = s
