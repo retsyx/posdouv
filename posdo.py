@@ -59,11 +59,13 @@ def so_read_block(so) :
     # read payload
     blk = []
     blk_read = 0
+    print lblk, '|'
     while blk_read < lblk :
         part = so.recv(lblk, 4096)
         if len(part) == 0 : raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
+        print blk_read, '<'
 
     blk = ''.join(blk)
     dmp(('=>', s, '\n', blk))
@@ -140,16 +142,18 @@ def posdo_run_job(job_str, job_args) :
 
     # compile and execute the control module of the job
     x = compile(job_control_str, 'posdo_control.py', 'exec')
-    exec(x, globals())
-
+    job_inst = struct()
+    exec(x, job_inst.__dict__)
+    job_inst.__dict__.update(globals()) # XXX This will go away at some point
+    
     # initialize the job
-    if job_init(job_args) : raise PosdoException, 'Failed job_init()'
+    if job_inst.job_init(job_args) : raise PosdoException, 'Failed job_init()'
 
     # Get job specific options (optional)
     try :
-        options = job_get_options()
+        options = job_inst.job_get_options()
         if options == None : raise ValueError
-    except (ValueError, NameError):
+    except Exception:
         info(('using option defaults'))
         options = (1, 1, 0)
 
@@ -157,7 +161,7 @@ def posdo_run_job(job_str, job_args) :
     info(('options ', options))
 
     # Get job globals
-    job_globals = job_get_globals()
+    job_globals = job_inst.job_get_globals()
     
     posdo_done = 0
     while not posdo_done :
@@ -182,12 +186,12 @@ def posdo_run_job(job_str, job_args) :
             else : # this is a fresh task
                 nof_task_base = new_task_base
                 task_len = uv.power
-                new_task_base = new_task_base + task_len # advance fresh task starting point
+                new_task_base += task_len # advance fresh task starting point
                 
             # accumulate tasks given the task's length
             task_args = []
             for i in range(0, task_len) :
-                arg = job_get_arg(nof_task_base + i)
+                arg = job_inst.job_get_arg(nof_task_base + i)
                 if arg == None : break
                 task_args.append(arg)
             
@@ -198,7 +202,8 @@ def posdo_run_job(job_str, job_args) :
                     task = ''
                     task_globals = ''
                 else :
-                    task = job_worker_str + '\nresult = job_worker(arg)\n'
+                    #task = job_worker_str + '\nresult = job_worker(arg)\n'
+                    task = job_worker_str
                     task_globals = job_globals
                 
                 task_info = (nof_task_base, task_globals, task_args)
@@ -218,7 +223,7 @@ def posdo_run_job(job_str, job_args) :
         # XXX This is an implicit check. May make sense to make it explicit
         if len(uvs) > 0 and len(outstanding_tasks) == 0 : posdo_done = 1
             
-        if len(outstanding_tasks) > 0 :
+        if not posdo_done:
             ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
         else :
             ri = []
@@ -237,7 +242,7 @@ def posdo_run_job(job_str, job_args) :
                     dbg(('task_info ', task_info))
                     nof_task_result = task_info
                     for result in task_results :
-                        job_add_result(nof_task_result, result)
+                        job_inst.job_add_result(nof_task_result, result)
                         nof_task_result = nof_task_result + 1
                     outstanding_tasks.pop(uv)
     
@@ -269,14 +274,14 @@ def posdo_run_job(job_str, job_args) :
                     else :
                         (nof_task_base, task_len) = task_info
                         for i in xrange(nof_task_base, nof_task_base + task_len) : 
-                            job_notify_failure(i) # notify the job of the failure                       
+                            job_inst.job_notify_failure(i) # notify the job of the failure                       
                 try :
                     uv_q.remove(uv) # if on idle list, remove
                 except : pass    
                 info(('Disonnected ', uv.addr))
                 uvs.pop(uv.so, 0)
     
-    job_finish() # signal job finished
+    job_inst.job_finish() # signal job finished
 
 port = long(sys.argv[1])
 

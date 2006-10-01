@@ -2,9 +2,9 @@ import Image
 
 x = 0.0
 y = 0.0
-zoom = .003
-width = 1024
-height = 1024
+zoom = .01
+width = 320
+height = 200
 dwell =  256 * 16 
 base_x = x - (width / 2) * zoom
 base_y = y - (height / 2) * zoom
@@ -19,12 +19,10 @@ def job_init(args) :
     img = Image.new('RGB', (width, height))
     return 0
 
-def job_get_options() : return None
-    
 def job_get_globals() :
     global x, y, zoom, width, height, dwell
-    globals = (x, y, zoom, width, height, dwell, base_x, base_y)
-    return globals
+    job_globals = (x, y, zoom, width, height, dwell, base_x, base_y)
+    return job_globals
     
 def job_get_arg(task_num) : 
     global width, height, base_x, base_y, zoom, dwell   
@@ -46,15 +44,11 @@ def job_notify_failure(task_num) : pass
 def job_finish() :
     img.save('fractal.png')
 
-
-def job_worker(arg) :
-    return job_worker2(arg)
-
 import cmath
 
-def job_worker2(arg) :
-    global globals
-    x, y, zoom, width, height, dwell, base_x, base_y = globals
+def job_worker(arg) :
+    global job_globals
+    x, y, zoom, width, height, dwell, base_x, base_y = job_globals
     task_num = arg
 
     x = base_x + (task_num % width) * zoom

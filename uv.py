@@ -10,7 +10,7 @@ except : pass
 
 uv_ver = 1
 
-globals = ''
+class struct : pass
 
 dbg_lvl = 3
 
@@ -82,6 +82,8 @@ def so_write_task(so, s) :
 host = sys.argv[1]
 port = long(sys.argv[2])
 
+job_globals = ''
+
 while 1 :
     try :
         so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -96,12 +98,18 @@ while 1 :
                 dbg(('compiling new task code'))
                 task_str = task[:] # keep a copy for reference if needed later
                 task_obj = compile(task, 'posdo', 'exec')
+                # execute payload
+                task_inst = struct()
+                exec(task_obj, task_inst.__dict__)
+                task_inst.__dict__.update({'uv_ver': uv_ver}) # to support upgrade
+                task_inst.__dict__.update({'so': so}) # XXX to support upgrade
             
             # only evaluate globals if given
             if task_globals != '' :
                 dbg(('assigning new globals'))
                 dmp((task_globals))
-                globals = task_globals
+                job_globals = task_globals
+                task_inst.__dict__.update({'job_globals': job_globals})
                 
             dmp((task_args))
             
@@ -113,19 +121,16 @@ while 1 :
             for arg in task_args :
                 dmp(('arg = ', arg))
                
-                # clear result
-                result = ''
-                    
-                # execute payload
-                exec(task_obj)
+                result = task_inst.job_worker(arg)
                 
                 task_results.append(result)
                 
             # return result
             so_write_task(so, ((task_base, task_results), ''))
-    except (ValueError, socket.error) :
+    except Exception, inst: 
+        print 'Exception:', inst
         so.close()
-    print '.'    
+    
     # sleep a little before hammering the server
     time.sleep(random.randint(1, 10))
 
