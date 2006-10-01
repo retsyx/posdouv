@@ -18,7 +18,7 @@ if job_init(job_args) :
     print 'job_init() failed'
     sys.exit(1)
 
-globals = job_get_globals()
+job_globals = job_get_globals()
 
 nof_tasks = 0
 while 1 :

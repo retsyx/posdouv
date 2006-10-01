@@ -5,8 +5,6 @@ def job_init(args) :
  i = 0
  return 0
 
-def job_get_options() : return None
-
 def job_get_globals() :
     return ''
 
