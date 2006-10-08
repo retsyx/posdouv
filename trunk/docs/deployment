@@ -1,0 +1,43 @@
+goals:
+1. provide method of deploying new SW to uvs
+2. maintain record of deployments done to each uv
+3. update new uvs with required deployments as they join the network
+4. multi-version deployments based on type of uv (e.g. windows vs. unix)
+5. jobs can specify pre-requisite deployment packages. 
+6. exclusion capability and memory of exclusion 
+7. reliable, efficient 
+8. managability
+
+1. provide method of deploying new SW to uvs
+pu provides method of transferring arbitrary data and code to uvs. data and code is compressed. Baseline python functionality provides for handling zip and compressed archives
+
+2. maintain record of deployments done to each uv
+uvs are to be modified to maintain a persistent "registry" with a defined API for task registry access/modification. Given that deployments are installation persistent (i.e. till you smash the hard drive) the registry must be install persistent. Hence, there will be a persistent registry file to be maintained by uv in a fault tolerant manner. 
+
+3. update new uvs with required deployments as they join the network
+New uvs joining a posdo network will be "deployed" as necessary before being given computational tasks. If deployment fails for any reason, failure will be logged and the uv potentially not used for computation or, if goal 5 is implemented, uvs will conditionally perform tasks given their deployment state and the job pre-requisites.
+Conceptually, the deployment stage of a new uv is a job.Since there can be a current job as new uvs join, there can be two concurrent jobs.
+pu is currently limited to handling a single job at a time. pu must be expanded to support at least 2 jobs, preferably N jobs.
+For efficiency need to be able to interrogate uv for environment and deployment version for particular deployment package. This implies a of stateful "chat", i.e. job task master should be able to send task, receive result, associate result with uv and provide next task for given uv based on previous result. 
+To facilitate this, posdo will provide an _opaque_ and _install persistent_ uv identifier to job_get_arg() and job_add_result()/job_notify_failure()
+
+4. multi-version deployments based on type of uv (e.g. windows vs. unix)
+pu, by design, does not currently provide uv identity or state as seen by the job task master, e.g. all uvs are invisible, identical, indistinguishable, non-enumerable, state-less and generally unordered (but FIFO ordered in the steady uv state - no uv joins/unjoins). 
+Python provides a mechanism for a task to identify the local system, however, there is presently no concise way for a job task to provide state information to the task manager that can be associated with the specific uv.
+One method of overcoming this limitation is to send all versions to a particular uv and have it locally select the correct version. However, this reeks of inefficiency and sounds very draining on posdo.
+The resolution of this problem will be the same as for the previous section - opaque uv handles to allow maintaining state pertaining to individual uvs.
+
+5. jobs can specify pre-requisite deployment packages. 
+Jobs can provide a pre-requisite list to be sent along with a task to a uv. uvs that don't have the required pre-reqs (as recorded in the registry) can signal the lack of pre-reqs. This would require a method for signalling this information back to posdo and posdo would need to use the info. In this case it may be beneficial for posdo to maintain a list of valid uvs per job. This would need to somehow mesh with the N job requirement.
+
+6. exclusion capability and memory of exclusion 
+If a uv cannot be deployed for any reason, it should be possible to signal that the uv is "null deployed" and deployment should not be attempted again. It will also signal that the uv cannot perform jobs with the particular deployment pre-req.
+This can be achieved by convention within the registry. For instance, if deployments have version numbers (as they most probably will), a 0 version is a "null deployment"
+ 
+7. reliable, efficient
+Chat/state and registry will allow for efficiency.
+Registry will provide reliability in the form of persistence. A large part of the fault tolerance will have to be done as part of the individual deployment code.
+Hopefully caching across nodes (uv->posdo) can be avoided.
+
+8. managability
+Managability seems to imply having to allow the user the ability to reference arbitrary uvs (for instance, when given a set of failed deployment uvs, the user should be able to operate on individual uvs). Referencing uvs will be done through the persistent uv identifiers - posdo needs to maintain an identifier<->uv mapping  
