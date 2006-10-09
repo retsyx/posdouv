@@ -102,7 +102,7 @@ def reg_load() :
         err(("Failed to load registry file '", REGISTRY_FILE, "': ", inst))
         return {}
 
-def uv_run(registry) :
+def uv_run(uv_registry) :
     job_globals = ''
     while 1 :
         try :
