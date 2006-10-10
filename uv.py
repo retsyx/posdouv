@@ -1,5 +1,4 @@
 from optparse import OptionParser, make_option
-#import optparse
 import pickle
 import socket
 import sys
@@ -82,14 +81,16 @@ def so_write_task(so, s) :
     s = str(task_info) + '\n' + s
     so_write_block(so, s)
 
-REGISTRY_FILE = 'uv.reg'
+REGISTRY_SAVE_INTERVAL = 600
+REGISTRY_FILE_NAME = 'uv.reg'
+REG_UV_ID = 'uv.id'
 
 # XXX for now just assume pwd is the right place for the registry file
 def reg_save(registry) :
     try :
-        pickle.dump(registry, open(REGISTRY_FILE, 'w'))    
+        pickle.dump(registry, open(REGISTRY_FILE_NAME, 'w'))    
     except Exception, inst:
-        err(("Failed to save registry file '", REGISTRY_FILE, "': ", inst, "\nRegistry dump follows:"))
+        err(("Failed to save registry file '", REGISTRY_FILE_NAME, "': ", inst, "\nRegistry dump follows:"))
         try :        
             err((pickle.dumps(registry)))
         except Exception, inst:
@@ -97,18 +98,24 @@ def reg_save(registry) :
 
 def reg_load() :
     try :
-        return pickle.load(open(REGISTRY_FILE, 'r'))
+        return pickle.load(open(REGISTRY_FILE_NAME, 'r'))
     except Exception, inst:
-        err(("Failed to load registry file '", REGISTRY_FILE, "': ", inst))
+        err(("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst))
         return {}
+
 
 def uv_run(uv_registry) :
     job_globals = ''
+    last_time = 0
     while 1 :
         try :
             so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             so.connect((host, port))
             while 1 :
+                if time.time() - last_time > REGISTRY_SAVE_INTERVAL :
+                    reg_save(uv_registry)
+                    last_time = time.time()
+        
                 task_info, task = so_read_task(so)
                 task_base, task_globals, task_args = task_info
         
@@ -154,6 +161,10 @@ def uv_run(uv_registry) :
     
         # sleep a little before hammering the server
         time.sleep(random.randint(1, 10))
+        
+        if time.time() - last_time > REGISTRY_SAVE_INTERVAL :
+            reg_save(uv_registry)
+            last_time = time.time()
     
     so.close()
 
@@ -169,7 +180,11 @@ host = options.host_addr
 port = options.host_port
 
 registry = reg_load()
-
+if not registry.has_key(REG_UV_ID) :
+    random.seed(time.time())
+    registry[REG_UV_ID] = random.randint(0, 18446462598732840960L)
+    reg_save(registry)
+    
 try :
     uv_run(registry)
 except Exception, inst :
