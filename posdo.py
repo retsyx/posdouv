@@ -36,7 +36,9 @@ class struct :
         return str(self.__dict__)
     def __repr__(self) :
         return str(self.__dict__)
-
+    def __len__(self):
+        return len(self.__dict__)
+        
 def so_read_line(so) :
     s = ''
     t = so.recv(1)
@@ -287,8 +289,8 @@ port = long(sys.argv[1])
 #job_filename = sys.argv[2]
 #job_args = sys.argv[3:]
 
-min_time_per_task_sec = 10
-max_time_per_task_sec = 60
+min_time_per_task_sec = 20
+max_time_per_task_sec = 120
 new_task_base = 0
 
 uv_q = []  # UV
