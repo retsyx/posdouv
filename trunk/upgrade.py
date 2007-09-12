@@ -11,21 +11,21 @@ nof_uvs_updated = 0
 
 done = 0
 
-def job_get_options() :
+def job_get_options():
     return (0, 0, 10) # no power scaling, no task redo, 10 max outstanding
 
-def job_init(args) :
+def job_init(args):
     global new_uv_src, new_uv_ver
     f = file(args[0])
     new_uv_src = f.read()
     f.close()
     # find 'new_uv_ver' in upgrade file
     spos = new_uv_src.find('uv_ver')
-    if spos == -1 :
+    if spos == -1:
         print 'failed to find uv_ver'
         return -1
     epos = new_uv_src.find('\n', spos)
-    if epos == -1 :
+    if epos == -1:
         print 'failed to uv_ver EOL'
         return -1
     exec(new_uv_src[spos:epos])
@@ -33,33 +33,33 @@ def job_init(args) :
     print 'Updating to uv_ver =', new_uv_ver
     return 0
 
-def job_get_globals() :
+def job_get_globals():
     return ''
     
-def job_get_arg(task_num) : 
+def job_get_arg(task_num): 
     global done, nof_uvs_updated
-    if done : return None
+    if done: return None
     nof_uvs_updated = task_num
     return (new_uv_ver, new_uv_src)
     
-def job_add_result(task_num, result) :
+def job_add_result(task_num, result):
     global done
     done = 1
 
-def job_notify_failure(task_num) : pass
+def job_notify_failure(task_num): pass
 
-def job_finish() :
+def job_finish():
     global nof_uvs_updated
     print 'updated =', nof_uvs_updated
     
-def job_worker(arg) :
+def job_worker(arg):
     import os, sys, time
     
     global uv_ver
     new_uv_ver, new_uv_src = arg
     
     # UV version is the same, no change
-    if new_uv_ver == uv_ver :
+    if new_uv_ver == uv_ver:
         return 'ok'
             
     # We have a new UV, upgrade
