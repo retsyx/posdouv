@@ -16,17 +16,17 @@ job_worker_lines = inspect.findsource(job_worker)
 job_worker_str = ''.join(job_worker_lines[0][job_worker_lines[1]:])
 
 # initialize the job
-if job_init(job_args) :
+if job_init(job_args):
     print 'job_init() failed'
     sys.exit(1)
 
 job_globals = job_get_globals()
 
 nof_tasks = 0
-while 1 :
+while 1:
     # get an argument for a task
     arg = job_get_arg(nof_tasks)
-    if arg == None : break
+    if arg == None: break
     
     # execute the task
     result = job_worker(arg)

@@ -2,11 +2,11 @@ import sys, socket, select
 try :
     import psyco
     psyco.full()
-except : 
+except: 
     pass
 
-class HostPortProxy :
-    def __init__(self, local_bind, remote_bind) :
+class HostPortProxy:
+    def __init__(self, local_bind, remote_bind):
         self.local_bind = local_bind
         self.remote_bind = remote_bind
         self.so = []
@@ -14,7 +14,7 @@ class HostPortProxy :
         
         sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if hasattr(socket, "SO_REUSEPORT") :
+        if hasattr(socket, "SO_REUSEPORT"):
             sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)        
         sol.bind(self.local_bind)
         sol.listen(3)
@@ -22,30 +22,30 @@ class HostPortProxy :
         self.sol = sol
         self.so.append(sol)
     
-    def sockets(self) : return self.so
+    def sockets(self): return self.so
     
-    def handle_event(self, so) :
-        if so == self.sol :
+    def handle_event(self, so):
+        if so == self.sol:
             so1, addr = self.sol.accept()
             so2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try :
+            try:
                 so2.connect(self.remote_bind)
-            except :
+            except:
                 so1.close()
-            else :
+            else:
                 self.s2s[so1] = so2
                 self.s2s[so2] = so1
                 self.so.append(so1)
                 self.so.append(so2)
-        else :
+        else:
             so1 = so
             so2 = None
-            try :
+            try:
                 so2 = self.s2s[so1]
                 buf = so.recv(4096)
-                if len(buf) == 0 : raise Exception, "Socket died"
+                if len(buf) == 0: raise Exception, "Socket died"
                 so2.sendall(buf)
-            except :
+            except:
                 so1.close()
                 self.s2s.pop(so1)
                 self.so.remove(so1)
@@ -55,26 +55,26 @@ class HostPortProxy :
                     self.s2s.pop(so2)
                     self.so.remove(so2)
     
-class ProxySelect :
-    def __init__(self) :
+class ProxySelect:
+    def __init__(self):
         self.proxies = []
         
-    def add_proxy(self, proxy) :
+    def add_proxy(self, proxy):
         self.proxies.append(proxy)
     
-    def select(self, timeout=None) :
-        if len(self.proxies) == 0 :
+    def select(self, timeout=None):
+        if len(self.proxies) == 0:
             raise Exception, 'No proxies to select on!'
         sos = []
         soprx = {}
-        for proxy in self.proxies :
+        for proxy in self.proxies:
             sop = proxy.sockets()
-            for so in sop :
+            for so in sop:
                 soprx[so] = proxy         
             sos = sos + sop
            
         ri, ro, rerr = select.select(sos, [], [], timeout)
-        for so in ri :
+        for so in ri:
             soprx[so].handle_event(so)
             
 
@@ -85,5 +85,5 @@ sl = ProxySelect()
 prx = HostPortProxy(local_bind, remote_bind)
 sl.add_proxy(prx)
 
-while 1 :
+while 1:
     sl.select()

@@ -6,56 +6,56 @@ import time
 import random
 import zlib
 
-try :
+try:
     import psyco
     psyco.full()
-except : pass
+except: pass
 
 uv_ver = 1
 
-class struct : pass
+class struct: pass
 
 dbg_lvl = 3
 
-def dbg_out(lvl, *s) :
+def dbg_out(lvl, *s):
     global dbg_lvl
-    if lvl <= dbg_lvl : print ''.join([str(x) for x in s])
+    if lvl <= dbg_lvl: print ''.join([str(x) for x in s])
 
-def dmp(*s) : dbg_out(5, s)
-def dbg(*s) : dbg_out(4, s)    
-def info(*s) : dbg_out(3, s)
-def wrn(*s) : dbg_out(2, s)
-def err(*s) : dbg_out(1, s)
+def dmp(*s): dbg_out(5, s)
+def dbg(*s): dbg_out(4, s)    
+def info(*s): dbg_out(3, s)
+def wrn(*s): dbg_out(2, s)
+def err(*s): dbg_out(1, s)
 
-def so_read_line(so) :
+def so_read_line(so):
     s = ''
-    try :
+    try:
         t = so.recv(1)
-        while (t and t != '\n') :
+        while (t and t != '\n'):
             s = s + t
             t = so.recv(1)
-    except :
+    except:
         return ''
     
     return s
     
-def so_read_block(so) :
+def so_read_block(so):
     # read length
     s = so_read_line(so)
-    try :
+    try:
         lblk = long(s)
-    except :
+    except:
         lblk = 0
     
     # if nothing to read, quit
-    if lblk == 0 : return ''
+    if lblk == 0: return ''
 
     # read payload
     blk = []
     blk_read = 0
-    while blk_read < lblk :
+    while blk_read < lblk:
         part = so.recv(min(lblk - blk_read, 4096))
-        if len(part) == 0 : raise Exception, "Socket dead"
+        if len(part) == 0: raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
 
@@ -65,18 +65,18 @@ def so_read_block(so) :
     dmp('=>', len(s), '\n', s)
     return s
 
-def so_read_task(so) :
+def so_read_task(so):
     s = so_read_block(so)
     task_info, task = s.split('\n', 1)
     return eval(task_info), task
 
-def so_write_block(so, r) :
+def so_write_block(so, r):
     dmp('<=', len(r), r)
     s = zlib.compress(r)
     t = ''.join((str(len(s)), '\n', s))
     so.sendall(t)
 
-def so_write_task(so, s) :
+def so_write_task(so, s):
     task_info, s = s
     s = str(task_info) + '\n' + s
     so_write_block(so, s)
@@ -86,33 +86,33 @@ REGISTRY_FILE_NAME = 'uv.reg'
 REG_UV_ID = 'uv.id'
 
 # XXX for now just assume pwd is the right place for the registry file
-def reg_save(registry) :
-    try :
+def reg_save(registry):
+    try:
         pickle.dump(registry, open(REGISTRY_FILE_NAME, 'w'))    
     except Exception, inst:
         err("Failed to save registry file '", REGISTRY_FILE_NAME, "': ", inst, "\nRegistry dump follows:")
-        try :        
+        try:        
             err(pickle.dumps(registry))
         except Exception, inst:
             err("Failed to dump registry: ", inst)
 
-def reg_load() :
-    try :
+def reg_load():
+    try:
         return pickle.load(open(REGISTRY_FILE_NAME, 'r'))
     except Exception, inst:
         err("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst)
         return {}
 
 
-def uv_run(uv_registry) :
+def uv_run(uv_registry):
     job_globals = ''
     last_time = 0
-    while 1 :
-        try :
+    while 1:
+        try:
             so = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             so.connect((host, port))
-            while 1 :
-                if time.time() - last_time > REGISTRY_SAVE_INTERVAL :
+            while 1:
+                if time.time() - last_time > REGISTRY_SAVE_INTERVAL:
                     reg_save(uv_registry)
                     last_time = time.time()
         
@@ -121,7 +121,7 @@ def uv_run(uv_registry) :
         
                 # only compile task code if it is given, otherwise
                 # use previous code
-                if task != '' :
+                if task != '':
                     dbg('compiling new task code')
                     task_str = task[:] # keep a copy for reference if needed later
                     task_obj = compile(task, 'posdo', 'exec')
@@ -133,7 +133,7 @@ def uv_run(uv_registry) :
                     task_inst.__dict__.update({'so': so}) # XXX to support upgrade
                 
                 # only evaluate globals if given
-                if task_globals != '' :
+                if task_globals != '':
                     dbg('assigning new globals')
                     dmp(task_globals)
                     job_globals = task_globals
@@ -142,11 +142,11 @@ def uv_run(uv_registry) :
                 dmp(task_args)
                 
                 # Interpret zero length args as signal to exit
-                if len(task_args) == 0 : break
+                if len(task_args) == 0: break
                 
                 task_results = []
                 
-                for arg in task_args :
+                for arg in task_args:
                     dmp('arg = ', arg)
                 
                     result = task_inst.job_worker(arg)
@@ -162,7 +162,7 @@ def uv_run(uv_registry) :
         # sleep a little before hammering the server
         time.sleep(random.randint(1, 10))
         
-        if time.time() - last_time > REGISTRY_SAVE_INTERVAL :
+        if time.time() - last_time > REGISTRY_SAVE_INTERVAL:
             reg_save(uv_registry)
             last_time = time.time()
     
@@ -180,14 +180,14 @@ host = options.host_addr
 port = options.host_port
 
 registry = reg_load()
-if not registry.has_key(REG_UV_ID) :
+if not registry.has_key(REG_UV_ID):
     random.seed(time.time())
     registry[REG_UV_ID] = random.randint(0, 18446462598732840960L)
     reg_save(registry)
     
-try :
+try:
     uv_run(registry)
-except Exception, inst :
+except Exception, inst:
     err('Exception: ', inst)
 
 reg_save(registry)
