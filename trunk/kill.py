@@ -1,5 +1,6 @@
-import sys
+# kill.py
 # Kill all UVs and shutdown posdo
+import sys
 
 nof_kills = -1
 

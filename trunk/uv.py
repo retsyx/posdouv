@@ -17,15 +17,15 @@ class struct : pass
 
 dbg_lvl = 3
 
-def dbg_out(lvl, s) :
+def dbg_out(lvl, *s) :
     global dbg_lvl
     if lvl <= dbg_lvl : print ''.join([str(x) for x in s])
 
-def dmp(s) : dbg_out(5, s)
-def dbg(s) : dbg_out(4, s)    
-def info(s) : dbg_out(3, s)
-def wrn(s) : dbg_out(2, s)
-def err(s) : dbg_out(1, s)
+def dmp(*s) : dbg_out(5, s)
+def dbg(*s) : dbg_out(4, s)    
+def info(*s) : dbg_out(3, s)
+def wrn(*s) : dbg_out(2, s)
+def err(*s) : dbg_out(1, s)
 
 def so_read_line(so) :
     s = ''
@@ -62,7 +62,7 @@ def so_read_block(so) :
     blk = ''.join(blk)
     s = zlib.decompress(blk)
 
-    dmp(('=>', len(s), '\n', s))
+    dmp('=>', len(s), '\n', s)
     return s
 
 def so_read_task(so) :
@@ -71,7 +71,7 @@ def so_read_task(so) :
     return eval(task_info), task
 
 def so_write_block(so, r) :
-    dmp(('<=', len(r), r))
+    dmp('<=', len(r), r)
     s = zlib.compress(r)
     t = ''.join((str(len(s)), '\n', s))
     so.sendall(t)
@@ -90,17 +90,17 @@ def reg_save(registry) :
     try :
         pickle.dump(registry, open(REGISTRY_FILE_NAME, 'w'))    
     except Exception, inst:
-        err(("Failed to save registry file '", REGISTRY_FILE_NAME, "': ", inst, "\nRegistry dump follows:"))
+        err("Failed to save registry file '", REGISTRY_FILE_NAME, "': ", inst, "\nRegistry dump follows:")
         try :        
-            err((pickle.dumps(registry)))
+            err(pickle.dumps(registry))
         except Exception, inst:
-            err(("Failed to dump registry: ", inst))
+            err("Failed to dump registry: ", inst)
 
 def reg_load() :
     try :
         return pickle.load(open(REGISTRY_FILE_NAME, 'r'))
     except Exception, inst:
-        err(("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst))
+        err("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst)
         return {}
 
 
@@ -122,7 +122,7 @@ def uv_run(uv_registry) :
                 # only compile task code if it is given, otherwise
                 # use previous code
                 if task != '' :
-                    dbg(('compiling new task code'))
+                    dbg('compiling new task code')
                     task_str = task[:] # keep a copy for reference if needed later
                     task_obj = compile(task, 'posdo', 'exec')
                     # execute payload
@@ -134,12 +134,12 @@ def uv_run(uv_registry) :
                 
                 # only evaluate globals if given
                 if task_globals != '' :
-                    dbg(('assigning new globals'))
-                    dmp((task_globals))
+                    dbg('assigning new globals')
+                    dmp(task_globals)
                     job_globals = task_globals
                     task_inst.__dict__.update({'job_globals': job_globals})
                 
-                dmp((task_args))
+                dmp(task_args)
                 
                 # Interpret zero length args as signal to exit
                 if len(task_args) == 0 : break
@@ -147,7 +147,7 @@ def uv_run(uv_registry) :
                 task_results = []
                 
                 for arg in task_args :
-                    dmp(('arg = ', arg))
+                    dmp('arg = ', arg)
                 
                     result = task_inst.job_worker(arg)
                     
@@ -156,7 +156,7 @@ def uv_run(uv_registry) :
                 # return result
                 so_write_task(so, ((task_base, task_results), ''))
         except Exception, inst: 
-            err(('Exception: ', inst))
+            err('Exception: ', inst)
             so.close()
     
         # sleep a little before hammering the server
@@ -188,7 +188,7 @@ if not registry.has_key(REG_UV_ID) :
 try :
     uv_run(registry)
 except Exception, inst :
-    err(('Exception: ', inst))
+    err('Exception: ', inst)
 
 reg_save(registry)
  

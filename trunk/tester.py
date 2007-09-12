@@ -1,3 +1,5 @@
+# tester.py
+# Test a job script as if being run by a posdouv setup
 import inspect
 import sys
 

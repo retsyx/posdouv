@@ -1,11 +1,13 @@
+# mandelbrot.py
+# posdouv mandelbrot calculator
 import Image
 
 x = 0.0
 y = 0.0
 zoom = .01
-width = 320
+width = 200
 height = 200
-dwell =  256 * 16 
+dwell =  20 
 base_x = x - (width / 2) * zoom
 base_y = y - (height / 2) * zoom
 
@@ -67,6 +69,10 @@ def job_worker(arg) :
     if iter == dwell :
         result = (0, 0, 0)
     else : 
-        result = (255 - iter % 256, ((iter >> 4) % 256) * 15, 0)
+        r = 4*(iter % 64)
+        g = 4*((iter >> 5) % 64)
+        b = 4*((iter >> 10) % 64)
+        result = (r, g, b)
+        #result = (255 - iter % 256, ((iter >> 4) % 256) * 15, 0)
     
     return result
