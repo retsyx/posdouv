@@ -21,15 +21,15 @@ import zlib
 
 dbg_lvl = 3
 
-def dbg_out(lvl, s) :
+def dbg_out(lvl, *s) :
     global dbg_lvl
     if lvl <= dbg_lvl : print ''.join([str(x) for x in s])
 
-def dmp(s) : dbg_out(5, s)
-def dbg(s) : dbg_out(4, s)    
-def info(s) : dbg_out(3, s)
-def wrn(s) : dbg_out(2, s)
-def err(s) : dbg_out(1, s)
+def dmp(*s) : dbg_out(5, s)
+def dbg(*s) : dbg_out(4, s)    
+def info(*s) : dbg_out(3, s)
+def wrn(*s) : dbg_out(2, s)
+def err(*s) : dbg_out(1, s)
 
 class struct : 
     def __str__(self) :
@@ -71,7 +71,7 @@ def so_read_block(so) :
     blk = ''.join(blk)
     s = zlib.decompress(blk)
 
-    dmp(('=>', len(s), '\n', s))
+    dmp('=>', len(s), '\n', s)
     return s
 
 def so_read_task(so) :
@@ -80,7 +80,7 @@ def so_read_task(so) :
     return eval(task_info), task
 
 def so_write_block(so, r) :
-    dmp(('<=', len(r), r))
+    dmp('<=', len(r), r)
     s = zlib.compress(r)
     t = ''.join((str(len(s)), '\n', s))
     so.sendall(t)
@@ -112,7 +112,7 @@ def posdo_test_job_str(job_str) :
 def posdo_accept_uv() :
     global sol, iwtd, uvs, uv_q
     conn, addr = sol.accept()
-    info(('Connected ', addr))
+    info('Connected ', addr)
     iwtd.append(conn)
     uv = struct()
     uv.so = conn
@@ -120,7 +120,7 @@ def posdo_accept_uv() :
     uv.power = 1
     uv.last_task_time = 0
     uvs[conn] = uv
-    info([uv])
+    info(uv)
     
     uv_q.append(uv) # add to idle list  
         
@@ -155,11 +155,11 @@ def posdo_run_job(job_str, job_args) :
         options = job_inst.job_get_options()
         if options == None : raise ValueError
     except Exception:
-        info(('using option defaults'))
+        info('using option defaults')
         options = (1, 1, 0)
 
     opt_power_scaling, opt_redo_tasks, opt_max_outstanding = options
-    info(('options ', options))
+    info('options ', options)
 
     # Get job globals
     job_globals = job_inst.job_get_globals()
@@ -183,7 +183,7 @@ def posdo_run_job(job_str, job_args) :
                     task_len = uv.power
                 else : # entire redo task is consumed
                     redo_tasks.pop(0)
-                dbg(('redoing task ', nof_task_base, ' ', task_len))
+                dbg('redoing task ', nof_task_base, ' ', task_len)
             else : # this is a fresh task
                 nof_task_base = new_task_base
                 task_len = uv.power
@@ -218,7 +218,7 @@ def posdo_run_job(job_str, job_args) :
                 # If there are no task_args, then there is nothing left to do.
                 break
 
-        dbg(('outstanding ', len(outstanding_tasks)))
+        dbg('outstanding ', len(outstanding_tasks))
         
         # If there are UVs available and no more outstanding jobs, we are posdo_done
         # XXX This is an implicit check. May make sense to make it explicit
@@ -240,7 +240,7 @@ def posdo_run_job(job_str, job_args) :
 
                     task_results, dummy = so_read_task(uv.so)
                     task_info, task_results = task_results
-                    dbg(('task_info ', task_info))
+                    dbg('task_info ', task_info)
                     nof_task_result = task_info
                     for result in task_results :
                         job_inst.job_add_result(nof_task_result, result)
@@ -254,11 +254,11 @@ def posdo_run_job(job_str, job_args) :
                     if opt_power_scaling and uv.last_task_time > 0 :
                         if now - uv.last_task_time < min_time_per_task_sec :
                             uv.power = uv.power * 2
-                            dbg(('increased power of ', uv.addr, ' to ', uv.power))
+                            dbg('increased power of ', uv.addr, ' to ', uv.power)
                         elif now - uv.last_task_time > max_time_per_task_sec :
                             if uv.power > 1 :
                                 uv.power = uv.power / 2
-                                dbg(('decreased power of ', uv.addr, ' to ', uv.power))
+                                dbg('decreased power of ', uv.addr, ' to ', uv.power)
           
             except (socket.error, ValueError) :
                 uv.so.close()
@@ -270,7 +270,7 @@ def posdo_run_job(job_str, job_args) :
                 if outstanding_tasks.has_key(uv) :
                     task_info = outstanding_tasks.pop(uv)
                     if opt_redo_tasks :
-                        dbg(('queueing task for redo ', task_info))
+                        dbg('queueing task for redo ', task_info)
                         redo_tasks.append(task_info)
                     else :
                         (nof_task_base, task_len) = task_info
@@ -279,7 +279,7 @@ def posdo_run_job(job_str, job_args) :
                 try :
                     uv_q.remove(uv) # if on idle list, remove
                 except : pass    
-                info(('Disonnected ', uv.addr))
+                info('Disonnected ', uv.addr)
                 uvs.pop(uv.so, 0)
     
     job_inst.job_finish() # signal job finished
@@ -354,6 +354,6 @@ while 1 :
             try :
                uv_q.remove(uv) # if on idle list, remove
             except : pass
-            info(('Disconnected ', uv.addr)) 
+            info('Disconnected ', uv.addr)
 sol.close()
 

@@ -1,3 +1,5 @@
+# uvs.py
+# display the number of UVs Posdo has connected
 def job_init(args) : return 0
 
 def job_get_globals() : return ''
