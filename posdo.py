@@ -95,14 +95,14 @@ class Job(object):
         if is_done:
             self.inst.job_finish() # signal job finished
         return is_done    
-    def load(self):
+    def load(self, posdo_accessor):
         try:
             job_str = open(self.path, 'r').read()
         except IOError, inst:
             s = "%s: %s" % (self.name, inst)
             raise PosdoException, s
-        self.parse(job_str)    
-    def parse(self, job_str):
+        self.parse(job_str, posdo_accessor)
+    def parse(self, job_str, posdo_accessor):
         worker_match = re.compile('def.*job_worker').search(job_str)
         try: 
             offset = worker_match.start()
@@ -118,6 +118,7 @@ class Job(object):
             raise PosdoException, '%s: Invalid job (%s)' % (self.name, inst)
         self.inst = struct()
         exec(x, self.inst.__dict__)
+        self.inst.__dict__.update({'posdo': posdo_accessor})
     def init(self):
         err = self.inst.job_init(self.args)
         if err:
@@ -156,20 +157,24 @@ class Job(object):
         if self.opt_power_scaling:
             uv.power_scale()
     def uv_task(self, uv):
+        if self.opt_power_scaling:
+            uv_power = uv.power
+        else:
+            uv_power = 1
         # If we have a task that needs to be done,
         # redo it within UV's constraints. 
         # Otherwise, generate a fresh task
         if len(self.tasks_redo) > 0:
             task_offset, task_len = self.tasks_redo[0]
-            if task_len > uv.power: # chop up task to UVs size
-                self.tasks_redo[0] = (task_offset + uv.power, task_len - uv.power)
-                task_len = uv.power
+            if task_len > uv_power: # chop up task to UVs size
+                self.tasks_redo[0] = (task_offset + uv_power, task_len - uv_power)
+                task_len = uv_power
             else: # entire redo task is consumed
                 self.tasks_redo.pop(0)
             dbg('redoing task ', task_offset, ' ', task_len)
         else: # this is a fresh task
             task_offset = self.task_offset
-            task_len = uv.power
+            task_len = uv_power
             self.task_offset += task_len
         # build the tasks args list
         task_args = []
@@ -224,6 +229,82 @@ class Uv(struct):
         so_write_task(self.so, (task_info, task_code))
         self.task_time_last = glbl.now
         self.task_offset = task_offset
+
+class Posdo(struct):
+    def __init__(self):
+        self.uv_q = [] # UV
+        self.uvs = {} # so -> UV
+        self.jobs = [] # job
+        # select lists
+        self.iwtd = []
+        self.owtd = []
+        self.ewtd = []
+    def run(self):
+        # setup posdo accessor class
+        posdo_accessor = PosdoAccessor(self)
+        # setup listen socket
+        sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        sol.bind((glbl.network.host, glbl.network.port))
+        sol.listen(3)
+        self.iwtd.append(sol) # add socket to the select input list
+        now = 0
+        while not glbl.done:
+            while len(glbl.job_q) > 0:
+                job = glbl.job_q.pop()
+                try:
+                    job.load(posdo_accessor)
+                    job.init()
+                except Exception, inst:
+                    cli_err(inst)
+                    continue
+                self.jobs.append(job)
+            jobs_to_remove = []
+            for job in self.jobs:
+                if job.tasks_at_max(): continue
+                for uv in self.uv_q:
+                    if job.tasks_at_max(): break
+                    if job.uv_task(uv): break # if no more tasks left, then we are done
+                    self.uv_q.remove(uv)
+                if job.done():
+                    jobs_to_remove.append(job)
+            for job in jobs_to_remove:
+                self.jobs.remove(job)
+            jobs_to_remove = []
+            if glbl.done: continue
+            ri, ro, rerr = select.select(self.iwtd, self.owtd, self.ewtd, 1)
+            glbl.now = time.time()
+            for so in ri:
+                try:
+                    if so == sol: # process UV connection
+                        new_so, addr = so.accept()
+                        uv = Uv(new_so, addr)
+                        self.uvs[new_so] = uv
+                        self.iwtd.append(new_so)
+                    else: # process UV response
+                        uv = self.uvs[so]
+                        job = uv.task_job
+                        job.uv_result_process(uv)
+                    self.uv_q.append(uv) # add to idle list
+                except (socket.error, ValueError):
+                    info('Disconnecting ', uv.addr)
+                    self.uvs.pop(uv.so, 0)
+                    self.iwtd.remove(uv.so)
+                    try:
+                        self.uv_q.remove(uv) # remove from idle list if there
+                    except:
+                        pass
+                    uv.drop()
+
+class PosdoAccessor(object):        
+    def __init__(self, posdo):
+        self._posdo = posdo
+    def uvs_nof(self):
+        return len(self._posdo.uvs)
+    def terminate(self):
+        glbl.done = 1
         
 glbl = struct()
 glbl.done = False
@@ -264,69 +345,8 @@ def thread_cli():
         glbl.job_q.append(job)
         
 def thread_posdo():
-    uv_q = [] # UV
-    uvs = {} # so -> UV
-    jobs = [] # job
-    # select lists
-    iwtd = []
-    owtd = []
-    ewtd = []
-    # setup listen socket
-    sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if hasattr(socket, "SO_REUSEPORT"):
-        sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    sol.bind((glbl.network.host, glbl.network.port))
-    sol.listen(3)
-    iwtd.append(sol) # add socket to the select input list
-    now = 0
-    while not glbl.done:
-        while len(glbl.job_q) > 0:
-            job = glbl.job_q.pop()
-            try:
-                job.load()
-                job.init()
-            except Exception, inst:
-                cli_err(inst)
-                continue
-            jobs.append(job)
-        jobs_to_remove = []
-        for job in jobs:
-            if job.tasks_at_max(): continue
-            for uv in uv_q:
-                if job.tasks_at_max(): break
-                if job.uv_task(uv): break # if no more tasks left, then we are done
-                uv_q.remove(uv)
-            if job.done():
-                jobs_to_remove.append(job)
-        for job in jobs_to_remove:
-            jobs.remove(job)
-        jobs_to_remove = []
-        if glbl.done: continue
-        ri, ro, rerr = select.select(iwtd, owtd, ewtd, 1)
-        glbl.now = time.time()
-        for so in ri:
-            try:
-                if so == sol: # process UV connection
-                    new_so, addr = so.accept()
-                    uv = Uv(new_so, addr)
-                    uvs[new_so] = uv
-                    iwtd.append(new_so)
-                    uv_q.append(uv) # add to idle list
-                else: # process UV response
-                    uv = uvs[so]
-                    job = uv.task_job
-                    job.uv_result_process(uv)
-                    uv_q.append(uv) # add to idle list
-            except (socket.error, ValueError):
-                info('Disconnecting ', uv.addr)
-                uvs.pop(uv.so, 0)
-                iwtd.remove(uv.so)
-                try:
-                    uv_q.remove(uv) # remove from idle list if there
-                except:
-                    pass
-                uv.drop()
+    posdo = Posdo()
+    posdo.run()
 
 def main():
     glbl.network.port = int(sys.argv[1])

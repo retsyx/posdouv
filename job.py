@@ -6,6 +6,7 @@ i = 0
 def job_init(args):
  global i
  i = 0
+ print 'running with %d uvs' % (posdo.uvs_nof())
  return 0
 
 #def job_get_options(): return ...
