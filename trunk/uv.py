@@ -15,7 +15,7 @@ uv_ver = 1
 
 class struct: pass
 
-dbg_lvl = 11
+dbg_lvl = 3
 
 def dbg_out(lvl, *s):
     global dbg_lvl

@@ -2,10 +2,14 @@
 # Kill all UVs and shutdown posdo
 import sys
 
+nof_uvs = 0
 nof_kills = -1
 
 def job_init(args):
-    if get_nof_uvs() == 0: job_notify_failure(0) 
+    global nof_uvs
+    nof_uvs = posdo.uvs_nof()
+    print 'network of', nof_uvs
+    if nof_uvs == 0: job_notify_failure(0) 
     return 0
 
 def job_get_options():
@@ -22,16 +26,13 @@ def job_get_arg(task_num):
 def job_add_result(task_num, result): pass
     
 def job_notify_failure(task_num): 
-    if get_nof_uvs() <= 1: 
-        print 'killed network of', nof_kills + 1
-        sys.exit(0)
-
-def get_nof_uvs():
-    global uvs # XXX reaching into Posdo's guts
-    return len(uvs)
+    global nof_uvs, nof_kills
+    if posdo.uvs_nof() == 0: 
+        print 'killed network of %d with %d kills' % (nof_uvs, nof_kills+1)
+        posdo.terminate()
     
 def job_finish():
-    sys.exit(0) 
+    posdo.terminate()
        
 def job_worker(arg):
     import sys
