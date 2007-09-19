@@ -271,6 +271,7 @@ class Posdo(struct):
                 if job.done():
                     jobs_to_remove.append(job)
             for job in jobs_to_remove:
+                cli_ok("Job '%s' complete" % (job.name))
                 self.jobs.remove(job)
             jobs_to_remove = []
             if glbl.done: continue
