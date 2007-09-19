@@ -15,7 +15,7 @@ uv_ver = 1
 
 class struct: pass
 
-dbg_lvl = 3
+dbg_lvl = 11
 
 def dbg_out(lvl, *s):
     global dbg_lvl
@@ -36,9 +36,7 @@ def so_read_line(so):
             t = so.recv(1)
     except:
         return ''
-    
     return s
-    
 def so_read_block(so):
     # read length
     s = so_read_line(so)
@@ -46,10 +44,8 @@ def so_read_block(so):
         lblk = long(s)
     except:
         lblk = 0
-    
     # if nothing to read, quit
     if lblk == 0: return ''
-
     # read payload
     blk = []
     blk_read = 0
@@ -58,24 +54,19 @@ def so_read_block(so):
         if len(part) == 0: raise Exception, "Socket dead"
         blk.append(part)
         blk_read = blk_read + len(part)
-
     blk = ''.join(blk)
     s = zlib.decompress(blk)
-
     dmp('=>', len(s), '\n', s)
     return s
-
 def so_read_task(so):
     s = so_read_block(so)
     task_info, task = s.split('\n', 1)
     return eval(task_info), task
-
 def so_write_block(so, r):
     dmp('<=', len(r), r)
     s = zlib.compress(r)
     t = ''.join((str(len(s)), '\n', s))
     so.sendall(t)
-
 def so_write_task(so, s):
     task_info, s = s
     s = str(task_info) + '\n' + s
@@ -95,14 +86,12 @@ def reg_save(registry):
             err(pickle.dumps(registry))
         except Exception, inst:
             err("Failed to dump registry: ", inst)
-
 def reg_load():
     try:
         return pickle.load(open(REGISTRY_FILE_NAME, 'r'))
     except Exception, inst:
         err("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst)
         return {}
-
 
 def uv_run(uv_registry):
     job_globals = ''
@@ -115,10 +104,8 @@ def uv_run(uv_registry):
                 if time.time() - last_time > REGISTRY_SAVE_INTERVAL:
                     reg_save(uv_registry)
                     last_time = time.time()
-        
                 task_info, task = so_read_task(so)
                 task_base, task_globals, task_args = task_info
-        
                 # only compile task code if it is given, otherwise
                 # use previous code
                 if task != '':
@@ -131,41 +118,30 @@ def uv_run(uv_registry):
                     task_inst.__dict__.update({'uv_registry': uv_registry}) # registry
                     task_inst.__dict__.update({'uv_ver': uv_ver}) # to support upgrade
                     task_inst.__dict__.update({'so': so}) # XXX to support upgrade
-                
                 # only evaluate globals if given
                 if task_globals != '':
                     dbg('assigning new globals')
                     dmp(task_globals)
                     job_globals = task_globals
                     task_inst.__dict__.update({'job_globals': job_globals})
-                
                 dmp(task_args)
-                
                 # Interpret zero length args as signal to exit
                 if len(task_args) == 0: break
-                
                 task_results = []
-                
                 for arg in task_args:
                     dmp('arg = ', arg)
-                
                     result = task_inst.job_worker(arg)
-                    
                     task_results.append(result)
-                
                 # return result
                 so_write_task(so, ((task_base, task_results), ''))
         except Exception, inst: 
             err('Exception: ', inst)
             so.close()
-    
         # sleep a little before hammering the server
         time.sleep(random.randint(1, 10))
-        
         if time.time() - last_time > REGISTRY_SAVE_INTERVAL:
             reg_save(uv_registry)
             last_time = time.time()
-    
     so.close()
 
 option_list = [
