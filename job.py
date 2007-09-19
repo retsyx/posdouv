@@ -26,7 +26,7 @@ def job_add_result(task_num, result):
 def job_notify_failure(task_num): pass
 
 def job_finish():
- pass
+ print 'job completed'
 
 # Posdo will remote job_worker() and below to UV
        
