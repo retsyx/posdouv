@@ -289,7 +289,7 @@ class Posdo(struct):
                         job = uv.task_job
                         job.uv_result_process(uv)
                     self.uv_q.append(uv) # add to idle list
-                except (socket.error, ValueError):
+                except (socket.error, ValueError, AttributeError):
                     info('Disconnecting ', uv.addr)
                     self.uvs.pop(uv.so, 0)
                     self.iwtd.remove(uv.so)
