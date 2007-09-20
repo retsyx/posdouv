@@ -284,13 +284,14 @@ class Posdo(struct):
                         uv = Uv(new_so, addr)
                         self.uvs[new_so] = uv
                         self.iwtd.append(new_so)
+                        info('Connected ', addr)
                     else: # process UV response
                         uv = self.uvs[so]
                         job = uv.task_job
                         job.uv_result_process(uv)
                     self.uv_q.append(uv) # add to idle list
                 except (socket.error, ValueError, AttributeError):
-                    info('Disconnecting ', uv.addr)
+                    info('Disconnected ', uv.addr)
                     self.uvs.pop(uv.so, 0)
                     self.iwtd.remove(uv.so)
                     try:
