@@ -4,10 +4,10 @@
 i = 0
 
 def job_init(args):
- global i
- i = 0
- print 'running with %d uvs' % (posdo.uvs_nof())
- return 0
+    global i
+    i = 0
+    posdo.info('running with %d uvs' % (posdo.uvs_nof()))
+    return 0
 
 #def job_get_options(): return ...
 
@@ -22,12 +22,12 @@ def job_get_arg(task_num):
     return arg
 
 def job_add_result(task_num, result):
-    print result
+    posdo.info(result)
 
 def job_notify_failure(task_num): pass
 
 def job_finish():
- print 'job completed'
+    posdo.info('job completed')
 
 # Posdo will remote job_worker() and below to UV
        
