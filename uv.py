@@ -1,10 +1,5 @@
 from optparse import OptionParser, make_option
-import pickle
-import socket
-import sys
-import time
-import random
-import zlib
+import os, pickle, platform, random, socket, sys, time, zlib
 
 try:
     import psyco
@@ -93,7 +88,23 @@ def reg_load():
         err("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst)
         return {}
 
-def uv_run(uv_registry):
+def cpus_nof_detect():
+    if platform.system() == 'Darwin': # Mac
+           return int(os.popen2("sysctl -n hw.ncpu")[1].read())
+    elif platform.system() == 'Windows': # Windows
+        if os.environ.has_key("NUMBER_OF_PROCESSORS"):
+            cpus_nof = int(os.environ["NUMBER_OF_PROCESSORS"]);
+            if cpus_nof > 0:
+                return cpus_nof
+    elif hasattr(os, "sysconf"): # Unix
+       if os.sysconf_names.has_key("SC_NPROCESSORS_ONLN"):
+           cpus_nof = int(os.sysconf("SC_NPROCESSORS_ONLN"))
+           if cpus_nof > 0:
+               return cpus_nof
+    # default to 1 if can't find anything useful
+    return 1
+
+def uv_run(host, port, uv_registry):
     job_globals = ''
     last_time = 0
     while 1:
@@ -144,27 +155,42 @@ def uv_run(uv_registry):
             last_time = time.time()
     so.close()
 
-option_list = [
-make_option('-a', '--addr', type='string', default='localhost', dest='host_addr'),
-make_option('-p', '--port', type='int', default=6666, dest='host_port'),
-]
 
-parser = OptionParser(option_list=option_list)
-(options, args) = parser.parse_args()
-
-host = options.host_addr
-port = options.host_port
-
-registry = reg_load()
-if not registry.has_key(REG_UV_ID):
-    random.seed(time.time())
-    registry[REG_UV_ID] = random.randint(0, 18446462598732840960L)
-    reg_save(registry)
+def main():
+    option_list = [
+    make_option('-a', '--addr', type='string', default='localhost', dest='host_addr'),
+    make_option('-p', '--port', type='int', default=6666, dest='host_port'),
+    make_option('-c', '--cpus', type='int', default=None, dest='cpus_nof'),
+    ]
     
-try:
-    uv_run(registry)
-except Exception, inst:
-    err('Exception: ', inst)
+    parser = OptionParser(option_list=option_list)
+    (options, args) = parser.parse_args()
+    
+    host = options.host_addr
+    port = options.host_port
 
-reg_save(registry)
+    # XXX registry is shared between all UVs on this machine. This will cause race
+    # conditions, especially considering the forking below.
+    registry = reg_load()
+    if not registry.has_key(REG_UV_ID):
+        random.seed(time.time())
+        registry[REG_UV_ID] = random.randint(0, 18446462598732840960L)
+        reg_save(registry)
+
+    # Get number of CPUs and launch as many UVs
+    cpus_nof = options.cpus_nof
+    if not cpus_nof:
+        cpus_nof = cpus_nof_detect()
+    info('Running %d instances' % (cpus_nof))    
+    for i in range(cpus_nof-1):
+        pid = os.fork()
+        if pid == 0: break
+
+    try:
+        uv_run(host, port, registry)
+    except Exception, inst:
+        err('Exception: ', inst)
+    
+    reg_save(registry)
  
+main()
