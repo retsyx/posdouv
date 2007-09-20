@@ -17,13 +17,13 @@ dbg_lvl = 3
 
 def dbg_out(lvl, *s):
     global dbg_lvl
-    if lvl <= dbg_lvl: print ''.join([str(x) for x in s])
+    if lvl <= dbg_lvl: print(''.join([str(x) for x in s]))
 
-def dmp(*s): dbg_out(5, s)
-def dbg(*s): dbg_out(4, s)    
-def info(*s): dbg_out(3, s)
-def wrn(*s): dbg_out(2, s)
-def err(*s): dbg_out(1, s)
+def dmp(*s): dbg_out(5, *s)
+def dbg(*s): dbg_out(4, *s)    
+def info(*s): dbg_out(3, *s)
+def wrn(*s): dbg_out(2, *s)
+def err(*s): dbg_out(1, *s)
 
 def cli_ok(*s): print ''.join([str(x) for x in s])
 def cli_err(*s): print ': '.join(('Error', ''.join([str(x) for x in s])))
@@ -95,14 +95,14 @@ class Job(object):
         if is_done:
             self.inst.job_finish() # signal job finished
         return is_done    
-    def load(self, posdo_accessor):
+    def load(self, posdo):
         try:
             job_str = open(self.path, 'r').read()
         except IOError, inst:
             s = "%s: %s" % (self.name, inst)
             raise PosdoException, s
-        self.parse(job_str, posdo_accessor)
-    def parse(self, job_str, posdo_accessor):
+        self.parse(job_str, posdo)
+    def parse(self, job_str, posdo):
         worker_match = re.compile('def.*job_worker').search(job_str)
         try: 
             offset = worker_match.start()
@@ -118,6 +118,8 @@ class Job(object):
             raise PosdoException, '%s: Invalid job (%s)' % (self.name, inst)
         self.inst = struct()
         exec(x, self.inst.__dict__)
+        # setup posdo accessor class
+        posdo_accessor = PosdoAccessor(posdo, self.name)
         self.inst.__dict__.update({'posdo': posdo_accessor})
     def init(self):
         err = self.inst.job_init(self.args)
@@ -240,8 +242,6 @@ class Posdo(struct):
         self.owtd = []
         self.ewtd = []
     def run(self):
-        # setup posdo accessor class
-        posdo_accessor = PosdoAccessor(self)
         # setup listen socket
         sol = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sol.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -255,7 +255,7 @@ class Posdo(struct):
             while len(glbl.job_q) > 0:
                 job = glbl.job_q.pop()
                 try:
-                    job.load(posdo_accessor)
+                    job.load(self)
                     job.init()
                 except Exception, inst:
                     cli_err(inst)
@@ -300,13 +300,17 @@ class Posdo(struct):
                     uv.drop()
 
 class PosdoAccessor(object):        
-    def __init__(self, posdo):
+    def __init__(self, posdo, job_name):
         self._posdo = posdo
+        self._job_name = job_name
     def uvs_nof(self):
         return len(self._posdo.uvs)
     def terminate(self):
         glbl.done = 1
-        
+    def dbg(self, *s): dbg('%s: ' % (self._job_name), *s)
+    def info(self, *s): info('%s: ' % (self._job_name), *s)
+    def err(self, *s): err('%s: ' % (self._job_name), *s)
+    
 glbl = struct()
 glbl.done = False
 glbl.job_q = []

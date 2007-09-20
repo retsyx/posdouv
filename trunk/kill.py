@@ -8,7 +8,7 @@ nof_kills = -1
 def job_init(args):
     global nof_uvs
     nof_uvs = posdo.uvs_nof()
-    print 'network of', nof_uvs
+    posdo.info('network of %d' % (nof_uvs))
     if nof_uvs == 0: job_notify_failure(0) 
     return 0
 
@@ -28,7 +28,7 @@ def job_add_result(task_num, result): pass
 def job_notify_failure(task_num): 
     global nof_uvs, nof_kills
     if posdo.uvs_nof() == 0: 
-        print 'killed network of %d with %d kills' % (nof_uvs, nof_kills+1)
+        posdo.info('killed network of %d with %d kills' % (nof_uvs, nof_kills+1))
         posdo.terminate()
     
 def job_finish():
