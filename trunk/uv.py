@@ -16,11 +16,11 @@ def dbg_out(lvl, *s):
     global dbg_lvl
     if lvl <= dbg_lvl: print ''.join([str(x) for x in s])
 
-def dmp(*s): dbg_out(5, s)
-def dbg(*s): dbg_out(4, s)    
-def info(*s): dbg_out(3, s)
-def wrn(*s): dbg_out(2, s)
-def err(*s): dbg_out(1, s)
+def dmp(*s): dbg_out(5, *s)
+def dbg(*s): dbg_out(4, *s)    
+def info(*s): dbg_out(3, *s)
+def wrn(*s): dbg_out(2, *s)
+def err(*s): dbg_out(1, *s)
 
 def so_read_line(so):
     s = ''
@@ -76,16 +76,16 @@ def reg_save(registry):
     try:
         pickle.dump(registry, open(REGISTRY_FILE_NAME, 'w'))    
     except Exception, inst:
-        err("Failed to save registry file '", REGISTRY_FILE_NAME, "': ", inst, "\nRegistry dump follows:")
+        err("Failed to save registry file '%s': %s\nRegistry dump follows:" % (REGISTRY_FILE_NAME, inst))
         try:        
             err(pickle.dumps(registry))
         except Exception, inst:
-            err("Failed to dump registry: ", inst)
+            err("Failed to dump registry: %s" % (inst))
 def reg_load():
     try:
         return pickle.load(open(REGISTRY_FILE_NAME, 'r'))
     except Exception, inst:
-        err("Failed to load registry file '", REGISTRY_FILE_NAME, "': ", inst)
+        err("Failed to load registry file '%s': %s" % (REGISTRY_FILE_NAME, inst))
         return {}
 
 def cpus_nof_detect():
@@ -146,7 +146,7 @@ def uv_run(host, port, uv_registry):
                 # return result
                 so_write_task(so, ((task_base, task_results), ''))
         except Exception, inst: 
-            err('Exception: ', inst)
+            err('Exception: %s' % (inst))
             so.close()
         # sleep a little before hammering the server
         time.sleep(random.randint(1, 10))
@@ -189,7 +189,7 @@ def main():
     try:
         uv_run(host, port, registry)
     except Exception, inst:
-        err('Exception: ', inst)
+        err('Exception: %s' % (inst))
     
     reg_save(registry)
  
