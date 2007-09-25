@@ -75,4 +75,4 @@ def job_worker(arg):
     so.close()
     
     # spawn the new UV in our place
-    os.execv(sys.executable, tuple([sys.executable]) + tuple(sys.argv))
+    os.execv(sys.executable, tuple([sys.executable]) + tuple(sys.argv) + ('-c', '1'))
