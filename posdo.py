@@ -304,6 +304,8 @@ class PosdoAccessor(object):
     def __init__(self, posdo, job_name):
         self._posdo = posdo
         self._job_name = job_name
+    def jobs_nof(self):
+        return len(self._posdo.jobs)
     def uvs_nof(self):
         return len(self._posdo.uvs)
     def terminate(self):
