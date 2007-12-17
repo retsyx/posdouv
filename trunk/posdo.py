@@ -175,9 +175,21 @@ class Job(object):
                 self.tasks_redo.pop(0)
             dbg('redoing task ', task_offset, ' ', task_len)
         else: # this is a fresh task
-            task_offset = self.task_offset
-            task_len = uv_power
-            self.task_offset += task_len
+            # find out if we are allowed to ask for more args
+            try:
+                job_status = self.inst.job_get_status()
+            except Exception:
+                job_status = 1, 0
+            if job_status[0] == 0: # job complete
+                task_len = 0
+                self.tasks_done = True
+            elif job_status[0] == 1: # job not complete, may be pending more results
+                if job_status[1] == 0: # job is humming along
+                    task_offset = self.task_offset
+                    task_len = uv_power
+                    self.task_offset += task_len
+                else: # job is pending more results
+                    task_len = 0
         # build the tasks args list
         task_args = []
         for i in xrange(task_len):
