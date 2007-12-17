@@ -130,10 +130,10 @@ class Job(object):
             options = self.inst.job_get_options()
             if options == None: raise ValueError
         except Exception:
-            info('using option defaults')
+            dbg('using option defaults')
             options = (1, 1, 0)
         self.opt_power_scaling, self.opt_tasks_redo, self.opt_tasks_outstanding_max = options
-        info('options ', options)
+        dbg('options ', options)
         # Get job globals
         self.globals = self.inst.job_get_globals()
     def tasks_at_max(self):
