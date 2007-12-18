@@ -1,4 +1,4 @@
-import code, re, readline, select, socket, sys, threading, time, zlib
+import code, pickle, re, readline, select, socket, sys, threading, time, zlib
 
 # Format
 #
@@ -65,8 +65,8 @@ def so_read_block(so):
     return s
 def so_read_task(so):
     s = so_read_block(so)
-    task_info, task = s.split('\n', 1)
-    return eval(task_info), task
+    task_info, task = pickle.loads(s)
+    return task_info, task
 def so_write_block(so, r):
     dmp('<=', len(r), r)
     s = zlib.compress(r)
@@ -74,7 +74,7 @@ def so_write_block(so, r):
     so.sendall(t)
 def so_write_task(so, s):
     task_info, s = s
-    s = str(task_info) + '\n' + s
+    s = pickle.dumps((task_info, s))
     so_write_block(so, s)
     
 class Job(object):
