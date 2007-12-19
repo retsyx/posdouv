@@ -1,5 +1,5 @@
 from optparse import OptionParser, make_option
-import os, pickle, platform, random, socket, sys, time, zlib
+import os, pickle, platform, random, socket, sys, time, traceback, zlib
 
 try:
     import psyco
@@ -147,6 +147,7 @@ def uv_run(host, port, uv_registry):
                 so_write_task(so, ((task_base, task_results), ''))
         except Exception, inst: 
             err('Exception: %s' % (inst))
+            traceback.print_exc()
             so.close()
         # sleep a little before hammering the server
         time.sleep(random.randint(1, 10))
@@ -190,6 +191,7 @@ def main():
         uv_run(host, port, registry)
     except Exception, inst:
         err('Exception: %s' % (inst))
+        traceback.print_exc()
     
     reg_save(registry)
  
