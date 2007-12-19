@@ -195,7 +195,15 @@ class Job(object):
         for i in xrange(task_len):
             arg = self.inst.job_get_arg(task_offset + i)
             if arg == None:
-                self.tasks_done = True
+                # We got cut down, however, if job_get_status() exists, we need to
+                # check it as well.
+                try:
+                    job_status = self.inst.job_get_status()
+                    if job_status[0] == 0:
+                        self.tasks_done = True
+                except Exception: 
+                    # if job_get_status() doesn't exist then we are truly done
+                    self.tasks_done = True
                 break
             task_args.append(arg)
         if len(task_args) > 0:    
